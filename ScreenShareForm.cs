@@ -443,7 +443,15 @@ namespace ScreenShare
             Settings.Format = _rbPng.Checked ? "png" : "jpeg";
             Settings.Fps = (int)_numFps.Value;
             Settings.Quality = (int)_numQuality.Value;
-            _engine.Start();
+            try
+            {
+                _engine.Start();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, "无法开始共享", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
             _btnStart.Enabled = false;
             _btnStop.Enabled = true;
             RefreshIps();

@@ -51,8 +51,18 @@ namespace ScreenShare
             if (_started) return;
             _started = true;
 
-            _tcp = new TcpListener(IPAddress.Any, Settings.Port);
-            _tcp.Start();
+            try
+            {
+                _tcp = new TcpListener(IPAddress.Any, Settings.Port);
+                _tcp.Start();
+            }
+            catch (Exception ex)
+            {
+                _started = false;
+                throw new InvalidOperationException(
+                    "无法监听 TCP 端口 " + Settings.Port + "：可能已被其它实例或程序占用。\r\n" + ex.Message, ex);
+            }
+
             Thread tAccept = new Thread(AcceptLoop);
             tAccept.IsBackground = true;
             tAccept.Start();
