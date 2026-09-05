@@ -78,6 +78,9 @@ namespace ScreenShare
             AutoScaleMode = AutoScaleMode.Dpi;
             AutoScaleDimensions = new SizeF(96F, 96F);
 
+            // 应用图标（嵌入 exe 的 Fluent 图标；任务栏/Alt-Tab 显示）
+            try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
+
             BuildHeader();
             BuildNav();
             _panelShare = BuildSharePanel();

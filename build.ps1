@@ -11,6 +11,7 @@ try {
     $common = @(
         "/nologo", "/optimize+", "/target:winexe", "/platform:anycpu",
         "/win32manifest:app.manifest",
+        "/win32icon:icons\ScreenShare.ico",
         "/r:$fw\System.dll",
         "/r:$fw\System.Drawing.dll",
         "/r:$fw\System.Windows.Forms.dll",
