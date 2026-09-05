@@ -14,14 +14,18 @@ namespace ScreenShare
             public static readonly Color WindowBg  = Color.FromArgb(32, 32, 32);   // #202020
             public static readonly Color Card      = Color.FromArgb(43, 43, 43);   // #2B2B2B
             public static readonly Color CardAlt   = Color.FromArgb(38, 38, 38);   // #262626
+            public static readonly Color InputBg   = Color.FromArgb(48, 48, 48);   // #303030 表单底色
+            public static readonly Color RowAlt    = Color.FromArgb(46, 46, 46);   // 列表隔行
             public static readonly Color Border    = Color.FromArgb(61, 61, 61);   // #3D3D3D
             public static readonly Color NavBg     = Color.FromArgb(38, 38, 38);
             public static readonly Color NavHover  = Color.FromArgb(50, 50, 50);
             public static readonly Color Accent    = Color.FromArgb(76, 194, 255); // #4CC2FF
             public static readonly Color AccentHov = Color.FromArgb(111, 219, 255);// #6FDBFF
             public static readonly Color AccentDim = Color.FromArgb(45, 120, 160);
-            public static readonly Color Text      = Color.FromArgb(255, 255, 255);
+            public static readonly Color AccentSel = Color.FromArgb(38, 76, 96);   // 选中行淡蓝
+            public static readonly Color Text      = Color.FromArgb(245, 245, 245);
             public static readonly Color TextDim   = Color.FromArgb(154, 154, 154);
+            public static readonly Color TextMuted = Color.FromArgb(110, 110, 110);
             public static readonly Color Danger    = Color.FromArgb(220, 92, 92);
             public static readonly Color DangerHov = Color.FromArgb(235, 110, 110);
             public static readonly Color Green     = Color.FromArgb(110, 200, 120);
@@ -293,6 +297,322 @@ namespace ScreenShare
                 FluentIcon.Draw(g, Icon, 27, (Height - 19) / 2, 19, tc);
             TextRenderer.DrawText(g, Text, F.BaseFont, new Rectangle(56, 0, Width - 62, Height), tc,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+        }
+    }
+
+    /// <summary>Fluent 单选按钮（自绘圆形，同父分组互斥）</summary>
+    public sealed class FluentRadio : Control
+    {
+        public event EventHandler CheckedChanged;
+        private bool _checked;
+        private bool _hover;
+
+        public bool Checked
+        {
+            get { return _checked; }
+            set
+            {
+                if (_checked == value) return;
+                _checked = value;
+                if (value && Parent != null)
+                {
+                    foreach (Control c in Parent.Controls)
+                        if (c is FluentRadio && c != this) ((FluentRadio)c).Silent(false);
+                }
+                Invalidate();
+                if (CheckedChanged != null) CheckedChanged(this, EventArgs.Empty);
+            }
+        }
+
+        private void Silent(bool v) { _checked = v; Invalidate(); }
+
+        public FluentRadio()
+        {
+            SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint |
+                     ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+            Height = 24;
+            Font = F.BaseFont;
+            BackColor = F.C.Card;
+            ForeColor = F.C.Text;
+            Cursor = Cursors.Hand;
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); base.OnMouseLeave(e); }
+        protected override void OnClick(EventArgs e) { Checked = true; base.OnClick(e); }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            int cy = Height / 2;
+            Color rim = Checked ? F.C.Accent : (_hover ? Color.FromArgb(190, 190, 190) : Color.FromArgb(140, 140, 140));
+            using (Pen pen = new Pen(rim, 2f))
+                g.DrawEllipse(pen, 3, cy - 6, 12, 12);
+            if (Checked)
+                using (SolidBrush b = new SolidBrush(F.C.Accent))
+                    g.FillEllipse(b, 7, cy - 2, 4, 4);
+            TextRenderer.DrawText(g, Text, Font, new Rectangle(21, 0, Width - 23, Height), ForeColor,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+        }
+    }
+
+    /// <summary>Fluent 复选框（自绘圆角勾选框）</summary>
+    public sealed class FluentCheck : Control
+    {
+        public event EventHandler CheckedChanged;
+        private bool _checked;
+        private bool _hover;
+
+        public bool Checked
+        {
+            get { return _checked; }
+            set { if (_checked == value) return; _checked = value; Invalidate(); if (CheckedChanged != null) CheckedChanged(this, EventArgs.Empty); }
+        }
+
+        public FluentCheck()
+        {
+            SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint |
+                     ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+            Height = 24;
+            Font = F.BaseFont;
+            BackColor = F.C.Card;
+            ForeColor = F.C.Text;
+            Cursor = Cursors.Hand;
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); base.OnMouseLeave(e); }
+        protected override void OnClick(EventArgs e) { Checked = !Checked; base.OnClick(e); }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            int cy = Height / 2;
+            Rectangle box = new Rectangle(3, cy - 6, 12, 12);
+            using (GraphicsPath path = F.RoundRect(box, 3))
+            {
+                if (Checked)
+                {
+                    using (SolidBrush b = new SolidBrush(F.C.Accent)) g.FillPath(b, path);
+                    using (Pen pen = new Pen(Color.FromArgb(10, 40, 60), 2f))
+                    {
+                        pen.StartCap = LineCap.Round; pen.EndCap = LineCap.Round;
+                        g.DrawLine(pen, 6, cy, 9, cy + 3);
+                        g.DrawLine(pen, 9, cy + 3, 13, cy - 3);
+                    }
+                }
+                else
+                {
+                    using (Pen pen = new Pen(_hover ? Color.FromArgb(190, 190, 190) : Color.FromArgb(140, 140, 140), 1.6f))
+                        g.DrawPath(pen, path);
+                }
+            }
+            TextRenderer.DrawText(g, Text, Font, new Rectangle(21, 0, Width - 23, Height), ForeColor,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+        }
+    }
+
+    /// <summary>Fluent 输入框（圆角描边 + 聚焦高亮，内部原生 TextBox）</summary>
+    public sealed class FluentInput : Panel
+    {
+        public readonly TextBox Inner;
+        public new string Text { get { return Inner.Text; } set { Inner.Text = value; } }
+
+        public FluentInput()
+        {
+            BackColor = F.C.InputBg;
+            Padding = new Padding(10, 5, 10, 5);
+            Inner = new TextBox();
+            Inner.BorderStyle = BorderStyle.None;
+            Inner.BackColor = F.C.InputBg;
+            Inner.ForeColor = F.C.Text;
+            Inner.Font = F.BaseFont;
+            Inner.Dock = DockStyle.Fill;
+            Inner.GotFocus += (s, e) => Invalidate();
+            Inner.LostFocus += (s, e) => Invalidate();
+            Controls.Add(Inner);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            Rectangle r = new Rectangle(0, 0, Width - 1, Height - 1);
+            bool focus = Inner.Focused;
+            using (GraphicsPath path = F.RoundRect(r, 6))
+            using (SolidBrush b = new SolidBrush(F.C.InputBg))
+            using (Pen pen = new Pen(focus ? F.C.Accent : F.C.Border, focus ? 1.6f : 1f))
+            {
+                g.FillPath(b, path);
+                g.DrawPath(pen, path);
+            }
+        }
+    }
+
+    /// <summary>Fluent 数字输入（TextBox + 自绘上下步进按钮）</summary>
+    public sealed class FluentNumberUpDown : Control
+    {
+        private readonly TextBox _box;
+        private readonly NumBtn _up;
+        private readonly NumBtn _down;
+
+        public int Minimum { get; set; }
+        public int Maximum { get; set; }
+
+        public int Value
+        {
+            get { int v; int.TryParse(_box.Text, out v); return v; }
+            set { _box.Text = value.ToString(); }
+        }
+
+        public FluentNumberUpDown()
+        {
+            Height = 28;
+            Minimum = 0; Maximum = 100;
+            _box = new TextBox();
+            _box.BorderStyle = BorderStyle.None;
+            _box.BackColor = F.C.InputBg;
+            _box.ForeColor = F.C.Text;
+            _box.Font = F.BaseFont;
+            _box.TextAlign = HorizontalAlignment.Center;
+            _up = new NumBtn(true);
+            _up.Click += (s, e) => Step(1);
+            _down = new NumBtn(false);
+            _down.Click += (s, e) => Step(-1);
+            _box.GotFocus += (s, e) => Invalidate();
+            _box.LostFocus += (s, e) => Invalidate();
+            Controls.Add(_box);
+            Controls.Add(_up);
+            Controls.Add(_down);
+            Resize += (s, e) => LayoutNow();
+            LayoutNow();
+        }
+
+        private void LayoutNow()
+        {
+            int bw = 22;
+            _down.SetBounds(Width - bw - 1, Height / 2 + 1, bw, Height / 2 - 2);
+            _up.SetBounds(Width - bw - 1, 1, bw, Height / 2 - 1);
+            _box.SetBounds(3, 1, Width - bw - 5, Height - 2);
+        }
+
+        private void Step(int d)
+        {
+            int v = Value + d;
+            if (v < Minimum) v = Minimum;
+            if (v > Maximum) v = Maximum;
+            Value = v;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            Rectangle r = new Rectangle(0, 0, Width - 1, Height - 1);
+            bool focus = _box.Focused;
+            using (GraphicsPath path = F.RoundRect(r, 6))
+            using (SolidBrush b = new SolidBrush(F.C.InputBg))
+            using (Pen pen = new Pen(focus ? F.C.Accent : F.C.Border, focus ? 1.6f : 1f))
+            {
+                g.FillPath(b, path);
+                g.DrawPath(pen, path);
+            }
+        }
+
+        private sealed class NumBtn : Control
+        {
+            private readonly bool _upArrow;
+            private bool _hover;
+
+            public NumBtn(bool up)
+            {
+                _upArrow = up;
+                SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint |
+                         ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+                Cursor = Cursors.Hand;
+            }
+
+            protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
+            protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); base.OnMouseLeave(e); }
+
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                Graphics g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                if (_hover)
+                    using (SolidBrush b = new SolidBrush(F.C.NavHover))
+                        g.FillRectangle(b, ClientRectangle);
+                using (Pen pen = new Pen(F.C.TextDim, 1.4f))
+                {
+                    pen.StartCap = LineCap.Round; pen.EndCap = LineCap.Round;
+                    int cx = Width / 2 + 1, cy = Height / 2 + 1;
+                    if (_upArrow)
+                    {
+                        g.DrawLine(pen, cx - 4, cy + 2, cx, cy - 2);
+                        g.DrawLine(pen, cx, cy - 2, cx + 4, cy + 2);
+                    }
+                    else
+                    {
+                        g.DrawLine(pen, cx - 4, cy - 2, cx, cy + 2);
+                        g.DrawLine(pen, cx, cy + 2, cx + 4, cy - 2);
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>Fluent 列表（OwnerDraw：深色表头 / 隔行 / 淡蓝选中行）</summary>
+    public sealed class FluentListView : ListView
+    {
+        public FluentListView()
+        {
+            View = View.Details;
+            BorderStyle = BorderStyle.None;
+            FullRowSelect = true;
+            OwnerDraw = true;
+            BackColor = F.C.Card;
+            ForeColor = F.C.Text;
+            Font = F.BaseFont;
+            DrawColumnHeader += OnColumnHeader;
+            DrawItem += OnItem;
+            DrawSubItem += OnSubItem;
+            SetStyle(ControlStyles.OptimizedDoubleBuffer, true);
+        }
+
+        private void OnColumnHeader(object sender, DrawListViewColumnHeaderEventArgs e)
+        {
+            using (SolidBrush b = new SolidBrush(F.C.CardAlt))
+                e.Graphics.FillRectangle(b, e.Bounds);
+            TextRenderer.DrawText(e.Graphics, e.Header.Text, F.CaptionFont,
+                new Rectangle(e.Bounds.X + 10, e.Bounds.Y, e.Bounds.Width - 10, e.Bounds.Height),
+                F.C.TextDim, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+            using (Pen pen = new Pen(F.C.Border))
+                e.Graphics.DrawLine(pen, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
+        }
+
+        private void OnItem(object sender, DrawListViewItemEventArgs e)
+        {
+            // 整行背景（隔行提示是 AlternateColor 不需要，这里统一）
+            using (SolidBrush b = new SolidBrush(e.Item.Selected ? F.C.AccentSel : F.C.Card))
+                e.Graphics.FillRectangle(b, e.Bounds);
+            e.DrawDefault = false;
+        }
+
+        private void OnSubItem(object sender, DrawListViewSubItemEventArgs e)
+        {
+            bool sel = e.Item.Selected;
+            using (SolidBrush b = new SolidBrush(sel ? F.C.AccentSel : F.C.Card))
+                e.Graphics.FillRectangle(b, e.Bounds);
+            if (!sel && (e.ItemIndex % 2) == 1)
+                using (SolidBrush b = new SolidBrush(F.C.RowAlt))
+                    e.Graphics.FillRectangle(b, e.Bounds);
+            TextRenderer.DrawText(e.Graphics, e.SubItem.Text, Font,
+                new Rectangle(e.Bounds.X + 10, e.Bounds.Y, e.Bounds.Width - 10, e.Bounds.Height),
+                sel ? F.C.Accent : F.C.Text,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+            e.DrawDefault = false;
         }
     }
 

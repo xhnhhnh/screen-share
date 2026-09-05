@@ -22,15 +22,15 @@ namespace ScreenShare
         private readonly HostEngine _engine = new HostEngine();
         private Label _lblIp;
         private Label _lblPort;
-        private RadioButton _rbPng;
-        private RadioButton _rbJpeg;
-        private NumericUpDown _numFps;
-        private NumericUpDown _numQuality;
+        private FluentRadio _rbPng;
+        private FluentRadio _rbJpeg;
+        private FluentNumberUpDown _numFps;
+        private FluentNumberUpDown _numQuality;
         private FluentButton _btnStart;
         private FluentButton _btnStop;
-        private CheckBox _chkShare;
+        private FluentCheck _chkShare;
         private FluentButton _btnBridge;
-        private ListView _listClients;
+        private FluentListView _listClients;
         private TextBox _log;
 
         // ============ 观看端（B） ============
@@ -51,8 +51,8 @@ namespace ScreenShare
         private bool _autoConnect = true;
 
         private Label _vStatus;
-        private ListView _vList;
-        private TextBox _txtManual;
+        private FluentListView _vList;
+        private FluentInput _txtManual;
         private PictureBox _pic;
         private Panel _picHostPanel;
         private Label _vInfo;
@@ -309,34 +309,32 @@ namespace ScreenShare
             t2.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize)); // JPEG
             t2.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 36));
             t2.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize)); // 帧率
-            t2.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
+            t2.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
             t2.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize)); // 质量
-            t2.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
+            t2.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
             t2.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 300)); // 提示
 
-            _rbPng = new RadioButton();
+            _rbPng = new FluentRadio();
             _rbPng.Text = "PNG 无损（无色差，推荐）";
             _rbPng.Checked = true;
-            _rbPng.AutoSize = true;
-            _rbPng.BackColor = F.C.Card; _rbPng.ForeColor = F.C.Text;
-            _rbPng.Margin = new Padding(0, 14, 28, 0);
-            _rbJpeg = new RadioButton();
+            _rbPng.Width = 190;
+            _rbPng.Margin = new Padding(0, 12, 24, 0);
+            _rbJpeg = new FluentRadio();
             _rbJpeg.Text = "JPEG 快速";
-            _rbJpeg.AutoSize = true;
-            _rbJpeg.BackColor = F.C.Card; _rbJpeg.ForeColor = F.C.Text;
-            _rbJpeg.Margin = new Padding(0, 14, 0, 0);
+            _rbJpeg.Width = 110;
+            _rbJpeg.Margin = new Padding(0, 12, 0, 0);
             Label lFps = MakeLabel("帧率", F.C.TextDim, new Size(0, 22));
             lFps.Margin = new Padding(0, 17, 4, 0);
-            _numFps = new NumericUpDown();
+            _numFps = new FluentNumberUpDown();
             _numFps.Minimum = 5; _numFps.Maximum = 30; _numFps.Value = Settings.Fps;
-            _numFps.Dock = DockStyle.Top; _numFps.Height = 26; _numFps.Margin = new Padding(0, 14, 0, 0);
-            _numFps.BackColor = F.C.CardAlt; _numFps.ForeColor = F.C.Text; _numFps.BorderStyle = BorderStyle.FixedSingle;
+            _numFps.Margin = new Padding(0, 14, 0, 0);
+            _numFps.Width = 90;
             Label lQ = MakeLabel("质量", F.C.TextDim, new Size(0, 22));
             lQ.Margin = new Padding(0, 17, 4, 0);
-            _numQuality = new NumericUpDown();
+            _numQuality = new FluentNumberUpDown();
             _numQuality.Minimum = 40; _numQuality.Maximum = 100; _numQuality.Value = Settings.Quality;
-            _numQuality.Dock = DockStyle.Top; _numQuality.Height = 26; _numQuality.Margin = new Padding(0, 14, 0, 0);
-            _numQuality.BackColor = F.C.CardAlt; _numQuality.ForeColor = F.C.Text; _numQuality.BorderStyle = BorderStyle.FixedSingle;
+            _numQuality.Margin = new Padding(0, 14, 0, 0);
+            _numQuality.Width = 90;
             _numQuality.Enabled = false;
             _rbJpeg.CheckedChanged += (s, e) => _numQuality.Enabled = _rbJpeg.Checked;
             Label lHint = MakeLabel("提示：追求质量用 PNG，追求流畅用 JPEG", F.C.TextDim, new Size(0, 22));
@@ -358,11 +356,10 @@ namespace ScreenShare
             t3.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             t3.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             t3.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            _chkShare = new CheckBox();
+            _chkShare = new FluentCheck();
             _chkShare.Text = "同时允许对端访问文件共享 (SMB 445)";
-            _chkShare.AutoSize = true;
-            _chkShare.BackColor = F.C.Card; _chkShare.ForeColor = F.C.Text;
-            _chkShare.Margin = new Padding(0, 14, 0, 0);
+            _chkShare.Width = 260;
+            _chkShare.Margin = new Padding(0, 12, 0, 0);
             Label lbHint2 = MakeLabel("两台电脑同时点击，3 分钟内自动完成（USB4 连线 + UAC 选「是」）", F.C.TextDim, new Size(0, 22));
             lbHint2.Margin = new Padding(16, 17, 8, 0);
             _btnBridge = new FluentButton();
@@ -406,14 +403,10 @@ namespace ScreenShare
             cCli.Dock = DockStyle.Fill;
             cCli.Margin = new Padding(0, 0, 0, 10);
             TableLayoutPanel t4 = CardBody(cCli, 12, 12, 12);
-            _listClients = new ListView();
-            _listClients.View = View.Details;
-            _listClients.FullRowSelect = true;
-            _listClients.BorderStyle = BorderStyle.None;
+            _listClients = new FluentListView();
             _listClients.Columns.Add("地址", 560);
             _listClients.Columns.Add("状态", 240);
             _listClients.Dock = DockStyle.Fill;
-            _listClients.BackColor = F.C.CardAlt; _listClients.ForeColor = F.C.Text;
             t4.Controls.Add(_listClients, 0, 0);
             root.Controls.Add(cCli, 0, 4);
 
@@ -462,11 +455,10 @@ namespace ScreenShare
             top.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             _vStatus = MakeLabel("正在自动发现共享端…", F.C.Amber, new Size(0, 26));
             _vStatus.Margin = new Padding(0, 6, 0, 0);
-            _txtManual = new TextBox();
+            _txtManual = new FluentInput();
             _txtManual.Text = "IP:端口";
-            _txtManual.Height = 27;
-            _txtManual.Dock = DockStyle.Top; _txtManual.Margin = new Padding(0, 5, 8, 0);
-            _txtManual.BackColor = F.C.CardAlt; _txtManual.ForeColor = F.C.Text; _txtManual.BorderStyle = BorderStyle.FixedSingle;
+            _txtManual.Height = 30;
+            _txtManual.Dock = DockStyle.Top; _txtManual.Margin = new Padding(0, 4, 8, 0);
             FluentButton btnManual = new FluentButton();
             btnManual.Text = "直连";
             btnManual.Icon = IconKind.Link;
@@ -497,14 +489,10 @@ namespace ScreenShare
             cFind.Dock = DockStyle.Fill;
             cFind.Margin = new Padding(0, 0, 10, 0);
             TableLayoutPanel tFind = CardBody(cFind, 12, 12, 12);
-            _vList = new ListView();
-            _vList.View = View.Details;
-            _vList.FullRowSelect = true;
-            _vList.BorderStyle = BorderStyle.None;
+            _vList = new FluentListView();
             _vList.Columns.Add("主机", 88);
             _vList.Columns.Add("地址", 120);
             _vList.Dock = DockStyle.Fill;
-            _vList.BackColor = F.C.CardAlt; _vList.ForeColor = F.C.Text;
             _vList.DoubleClick += (s, e) => ConnectSelected();
             tFind.Controls.Add(_vList, 0, 0);
             body.Controls.Add(cFind, 0, 0);
