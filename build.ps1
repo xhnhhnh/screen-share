@@ -16,7 +16,7 @@ try {
         "/r:$fw\System.Windows.Forms.dll",
         "/resource:Enable-ThunderboltBridge.ps1,ScreenShare.Bridge.ps1"
     )
-    & $csc @common "/out:bin\ScreenShare.exe" "App.cs" "HostEngine.cs" "ScreenShareForm.cs" "FluentUI.cs" "Svg.cs" "BridgeConfigurer.cs"
+    & $csc @common "/out:bin\ScreenShare.exe" "App.cs" "HostEngine.cs" "ScreenShareForm.cs" "FluentUI.cs" "Svg.cs" "BridgeConfigurer.cs" "CrashGuard.cs"
     if ($LASTEXITCODE -ne 0) { throw "编译失败" }
     Write-Host "OK: bin\ScreenShare.exe"
 } finally { Pop-Location }

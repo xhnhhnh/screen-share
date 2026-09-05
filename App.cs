@@ -19,6 +19,8 @@ namespace ScreenShare
         [STAThread]
         public static void Main(string[] args)
         {
+            CrashGuard.Attach();
+
             // 解析命令行
             for (int i = 0; i < args.Length; i++)
             {
