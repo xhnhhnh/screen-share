@@ -68,6 +68,10 @@ namespace ScreenShare
         private Control _vInfoRow;
         private FluentButton _btnWinExit;
         private bool _windowed;
+        private Panel _headerPanel;
+        private Panel _navPanel;
+        private Control _frameCard;
+        private Control _canvasParent;   // 画面容器原来的父（TableLayout）
 
         private Panel _panelShare;
         private Panel _panelViewer;
@@ -188,6 +192,7 @@ namespace ScreenShare
 
             header.Controls.Add(title);
             header.Controls.Add(tbtns);
+            _headerPanel = header;
             Controls.Add(header);
         }
 
@@ -240,6 +245,7 @@ namespace ScreenShare
             nav.Controls.Add(_navViewer);
             nav.Controls.Add(_navShare);
             nav.Controls.Add(spacer);
+            _navPanel = nav;
             Controls.Add(nav);
         }
 
@@ -546,6 +552,7 @@ namespace ScreenShare
             FluentCard cFrame = new FluentCard();
             cFrame.Caption = "实时画面";
             cFrame.Dock = DockStyle.Fill;
+            _frameCard = cFrame;
             TableLayoutPanel tFrame = CardBody(cFrame, 12, 12, 12);
             _picHostPanel = new Panel();
             _picHostPanel.Dock = DockStyle.Fill;
@@ -603,21 +610,46 @@ namespace ScreenShare
             return page;
         }
 
-        /// <summary>窗口化全屏：隐藏顶栏/列表/信息，画面撑满内容区；Esc 或悬浮按钮退出</summary>
+        /// <summary>
+        /// 窗口化全屏：画面直接占满整个窗口（导航/标题栏/卡片全部隐藏），
+        /// 悬浮右上角「退出窗口化」按钮，Esc 退出。窗口边框与 DWM 圆角保留。
+        /// </summary>
         private void ToggleWindowed()
         {
             _windowed = !_windowed;
-            _vTopTable.Visible = !_windowed;
-            _vInfoRow.Visible = !_windowed;
-            if (_cFindCard != null)
+            if (_windowed)
             {
-                _cFindCard.Visible = !_windowed;
-                _vBodyTable.ColumnStyles[0] = _windowed
-                    ? new ColumnStyle(SizeType.Absolute, 0)
-                    : new ColumnStyle(SizeType.Absolute, 250);
+                // 记录画面容器原位，隐藏 chrome，画面占满整个窗体
+                _canvasParent = _picHostPanel.Parent;
+                _headerPanel.Visible = false;
+                _navPanel.Visible = false;
+                _panelViewer.Visible = false;
+
+                _picHostPanel.Parent = this;
+                _picHostPanel.Dock = DockStyle.Fill;
+                _picHostPanel.BringToFront();
+
+                _btnWinExit.Parent = this;
+                _btnWinExit.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+                _btnWinExit.Location = new Point(Width - 140, 12);
+                _btnWinExit.Visible = true;
+                _btnWinExit.BringToFront();
             }
-            _btnWinExit.Visible = _windowed;
-            // 窗口化时切换隐藏“共享端”关联提示不影响——画面卡自动占满
+            else
+            {
+                _headerPanel.Visible = true;
+                _navPanel.Visible = true;
+                _panelViewer.Visible = true;
+                if (_canvasParent != null)
+                {
+                    _picHostPanel.Parent = _canvasParent;
+                    _picHostPanel.Dock = DockStyle.Fill;
+                }
+                _btnWinExit.Visible = false;
+                _btnWinExit.Parent = _frameCard;
+                _btnWinExit.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+                _btnWinExit.Location = new Point(_frameCard.Width - 128, 6);
+            }
         }
 
         /* =================================================================== */
