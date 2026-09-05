@@ -193,9 +193,16 @@ namespace ScreenShare
             hint.AutoSize = true;
             hint.SetBounds(14, 600, 0, 0);
 
+            // 导航区顶部留白（spacer 最后添加 → Dock 布局时占据最上方）
+            Panel spacer = new Panel();
+            spacer.Dock = DockStyle.Top;
+            spacer.Height = 18;
+            spacer.BackColor = F.C.NavBg;
+
             nav.Controls.Add(hint);
             nav.Controls.Add(_navViewer);
             nav.Controls.Add(_navShare);
+            nav.Controls.Add(spacer);
             Controls.Add(nav);
         }
 
