@@ -1,0 +1,8 @@
+# 构建产物（用 gh release 发布 exe）
+bin/
+*.log
+
+# 系统/编辑器
+Thumbs.db
+.DS_Store
+.vscode/
