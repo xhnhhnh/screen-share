@@ -86,6 +86,7 @@ namespace ScreenShare
             g.SmoothingMode = SmoothingMode.AntiAlias;
             using (GraphicsPath gp = Svg.Parse(d))
             {
+                if (gp.PointCount == 0) return; // 空路径不绘制（PointCount 安全查询）
                 GraphicsState st = g.Save();
                 g.TranslateTransform(x, y);
                 g.ScaleTransform(size / 24f, size / 24f);
@@ -228,6 +229,7 @@ namespace ScreenShare
             if (string.IsNullOrEmpty(SvgGlyph)) return;
             using (GraphicsPath gp = Svg.Parse(SvgGlyph))
             {
+                if (gp.PointCount == 0) return; // 空路径不绘制
                 GraphicsState st = g.Save();
                 g.TranslateTransform((Width - 22) / 2f, (Height - 22) / 2f);
                 using (Pen p = new Pen(Color.FromArgb(232, 232, 232), 2f))

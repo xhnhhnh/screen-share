@@ -102,21 +102,24 @@ namespace ScreenShare
                     }
                     case 'L':
                     {
+                        float x0 = x, y0 = y;
                         x = F(t, ref i) + (rel ? x : 0);
                         y = F(t, ref i) + (rel ? y : 0);
-                        p.AddLine(Last(p), new PointF(x, y));
+                        p.AddLine(x0, y0, x, y);
                         break;
                     }
                     case 'H':
                     {
+                        float x0 = x;
                         x = F(t, ref i) + (rel ? x : 0);
-                        p.AddLine(Last(p), new PointF(x, y));
+                        p.AddLine(x0, y, x, y);
                         break;
                     }
                     case 'V':
                     {
+                        float y0 = y;
                         y = F(t, ref i) + (rel ? y : 0);
-                        p.AddLine(Last(p), new PointF(x, y));
+                        p.AddLine(x, y0, x, y);
                         break;
                     }
                     case 'C':
@@ -201,8 +204,15 @@ namespace ScreenShare
 
         private static PointF Last(GraphicsPath p)
         {
-            PointF[] pts = p.PathPoints;
-            return pts.Length > 0 ? pts[pts.Length - 1] : PointF.Empty;
+            try
+            {
+                PointF[] pts = p.PathPoints;
+                return pts.Length > 0 ? pts[pts.Length - 1] : PointF.Empty;
+            }
+            catch
+            {
+                return PointF.Empty; // 空路径无点可查
+            }
         }
 
         // ---- SVG 椭圆弧（端点→中心参数化）→ 分贝塞尔段 ----
