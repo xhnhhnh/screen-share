@@ -48,69 +48,55 @@ namespace ScreenShare
         }
     }
 
-    /// <summary>内嵌矢量图标（GDI+ 线条绘制，等价 SVG path，任意 DPI 锐利）</summary>
+    /// <summary>内嵌矢量图标（24×24 viewBox 标准 SVG path 数据，经内置 SVG 渲染器输出）</summary>
     public enum IconKind { None, Screen, Eye, Link, Play, Stop, Fullscreen, Bridge, Refresh }
 
     public static class FluentIcon
     {
-        /// <summary>在 (x,y) 画 size×size 图标（24 逻辑坐标设计）</summary>
+        /// <summary>标准 SVG path 数据（描边风格，24×24 视图坐标）</summary>
+        private static string PathOf(IconKind kind)
+        {
+            switch (kind)
+            {
+                case IconKind.Screen:    // 显示器（圆角屏幕 + 底座）
+                    return "M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM8 21h8M12 17v4";
+                case IconKind.Eye:       // 眼睛（上下弧 + 瞳孔）
+                    return "M2.5 12C5.5 6.5 8.5 4.5 12 4.5S18.5 6.5 21.5 12c-3 5.5-6 7.5-9.5 7.5S5.5 17.5 2.5 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6";
+                case IconKind.Link:      // 链接（链节双弧 + 中轴）
+                    return "M9 17H7a5 5 0 0 1 0-10h2M15 7h2a5 5 0 1 1 0 10h-2M8 12h8";
+                case IconKind.Play:      // 播放三角
+                    return "M7.5 5.5v13l11-6.5z";
+                case IconKind.Stop:      // 停止方块
+                    return "M7 7h10v10H7z";
+                case IconKind.Fullscreen: // 扩角（四角 + 对角箭头）
+                    return "M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7";
+                case IconKind.Bridge:    // 闪电（雷电/USB4 网桥）
+                    return "M13 2L3 14h7l-1 8 10-12h-7l1-8";
+                case IconKind.Refresh:   // 刷新（圆弧 + 箭头）
+                    return "M21 12a9 9 0 1 1-2.64-6.36M21 3v5h-5";
+            }
+            return null;
+        }
+
+        /// <summary>在 (x,y) 画 size×size 的 SVG 图标（矢量路径，任意 DPI 锐利）</summary>
         public static void Draw(Graphics g, IconKind kind, int x, int y, int size, Color color)
         {
-            if (kind == IconKind.None) return;
+            string d = PathOf(kind);
+            if (d == null) return;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            using (Pen p = new Pen(color, 1.7f))
+            using (GraphicsPath gp = Svg.Parse(d))
             {
-                p.StartCap = LineCap.Round;
-                p.EndCap = LineCap.Round;
-                p.LineJoin = LineJoin.Round;
-                float k = size / 24f;
-                Func<float, float> X = delegate(float v) { return x + v * k; };
-                Func<float, float> Y = delegate(float v) { return y + v * k; };
-                Action<float, float, float, float> L = delegate(float x1, float y1, float x2, float y2)
+                GraphicsState st = g.Save();
+                g.TranslateTransform(x, y);
+                g.ScaleTransform(size / 24f, size / 24f);
+                using (Pen pen = new Pen(color, 2f))
                 {
-                    g.DrawLine(p, X(x1), Y(y1), X(x2), Y(y2));
-                };
-
-                switch (kind)
-                {
-                    case IconKind.Screen: // 显示器
-                        g.DrawRectangle(p, X(3), Y(4), 18 * k, 12 * k);
-                        L(9, 20, 15, 20);
-                        L(12, 16, 12, 20);
-                        break;
-                    case IconKind.Eye: // 眼睛
-                        g.DrawBezier(p, X(2.5f), Y(12), X(8), Y(5), X(16), Y(5), X(21.5f), Y(12));
-                        g.DrawBezier(p, X(2.5f), Y(12), X(8), Y(19), X(16), Y(19), X(21.5f), Y(12));
-                        g.FillEllipse(p.Brush, X(10.6f), Y(10.6f), 2.8f * k, 2.8f * k);
-                        break;
-                    case IconKind.Link: // 链接（两环）
-                        g.DrawArc(p, X(3), Y(9), 10 * k, 10 * k, 130, 190);
-                        g.DrawArc(p, X(11), Y(9), 10 * k, 10 * k, -50, 190);
-                        break;
-                    case IconKind.Play: // 播放三角
-                        L(8, 5.5f, 8, 18.5f);
-                        L(8, 5.5f, 19, 12);
-                        L(8, 18.5f, 19, 12);
-                        break;
-                    case IconKind.Stop: // 停止方块
-                        g.DrawRectangle(p, X(6.5f), Y(6.5f), 11 * k, 11 * k);
-                        break;
-                    case IconKind.Fullscreen: // 四角
-                        L(4, 9, 4, 4); L(4, 4, 9, 4);
-                        L(15, 4, 20, 4); L(20, 4, 20, 9);
-                        L(20, 15, 20, 20); L(20, 20, 15, 20);
-                        L(9, 20, 4, 20); L(4, 20, 4, 15);
-                        break;
-                    case IconKind.Bridge: // 双端箭头（点对点）
-                        L(4, 12, 20, 12);
-                        L(15, 7, 20, 12); L(15, 17, 20, 12);
-                        L(9, 7, 4, 12); L(9, 17, 4, 12);
-                        break;
-                    case IconKind.Refresh: // 刷新
-                        g.DrawArc(p, X(6), Y(6), 12 * k, 12 * k, -30, 250);
-                        L(18, 3, 18.5f, 8); L(18, 8, 13.5f, 8);
-                        break;
+                    pen.StartCap = LineCap.Round;
+                    pen.EndCap = LineCap.Round;
+                    pen.LineJoin = LineJoin.Round;
+                    g.DrawPath(pen, gp);
                 }
+                g.Restore(st);
             }
         }
     }
@@ -212,10 +198,11 @@ namespace ScreenShare
         }
     }
 
-    /// <summary>标题栏按钮（最小化 / 最大化 / 关闭）</summary>
+    /// <summary>标题栏按钮（最小化 / 最大化 / 关闭，SVG 矢量图标）</summary>
     public sealed class CaptionButton : Control
     {
         public bool Close { get; set; }
+        public string SvgGlyph { get; set; }
         private bool _hover;
 
         public CaptionButton()
@@ -238,22 +225,19 @@ namespace ScreenShare
                     g.FillRectangle(b, ClientRectangle);
             }
 
-            int cx = Width / 2, cy = Height / 2;
-            using (Pen p = new Pen(Color.FromArgb(230, 230, 230)))
+            if (string.IsNullOrEmpty(SvgGlyph)) return;
+            using (GraphicsPath gp = Svg.Parse(SvgGlyph))
             {
-                if (Text == "_")
+                GraphicsState st = g.Save();
+                g.TranslateTransform((Width - 22) / 2f, (Height - 22) / 2f);
+                using (Pen p = new Pen(Color.FromArgb(232, 232, 232), 2f))
                 {
-                    g.DrawLine(p, cx - 7, cy + 3, cx + 7, cy + 3);
+                    p.StartCap = LineCap.Round;
+                    p.EndCap = LineCap.Round;
+                    p.LineJoin = LineJoin.Round;
+                    g.DrawPath(p, gp);
                 }
-                else if (Text == "□")
-                {
-                    g.DrawRectangle(p, cx - 7, cy - 7, 14, 14);
-                }
-                else if (Close)
-                {
-                    g.DrawLine(p, cx - 6, cy - 6, cx + 6, cy + 6);
-                    g.DrawLine(p, cx - 6, cy + 6, cx + 6, cy - 6);
-                }
+                g.Restore(st);
             }
         }
     }

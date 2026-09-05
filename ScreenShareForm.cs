@@ -127,12 +127,12 @@ namespace ScreenShare
             sub.MouseDown += HeaderDrag;
 
             CaptionButton btnMin = new CaptionButton();
-            btnMin.Text = "_";
+            btnMin.SvgGlyph = "M5 12h14";
             btnMin.SetBounds(1160 - 46 * 3, 3, 46, 34);
             btnMin.Click += (s, e) => WindowState = FormWindowState.Minimized;
 
             CaptionButton btnMax = new CaptionButton();
-            btnMax.Text = "□";
+            btnMax.SvgGlyph = "M5.5 5.5h13v13h-13z";
             btnMax.SetBounds(1160 - 46 * 2, 3, 46, 34);
             btnMax.Click += (s, e) =>
             {
@@ -142,6 +142,7 @@ namespace ScreenShare
 
             CaptionButton btnClose = new CaptionButton();
             btnClose.Close = true;
+            btnClose.SvgGlyph = "M6.5 6.5l11 11M17.5 6.5l-11 11";
             btnClose.SetBounds(1160 - 46, 3, 46, 34);
             btnClose.Click += (s, e) => Close();
 
