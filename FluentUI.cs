@@ -37,6 +37,17 @@ namespace ScreenShare
         public static readonly Font CaptionFont = new Font("Segoe UI Semibold", 8.5F);
         public static readonly Font SmallFont = new Font("Segoe UI", 8F);
 
+        /// <summary>颜色线性插值（动画过渡用）</summary>
+        public static Color Lerp(Color a, Color b, float t)
+        {
+            if (t <= 0f) return a;
+            if (t >= 1f) return b;
+            return Color.FromArgb(
+                (int)(a.R + (b.R - a.R) * t),
+                (int)(a.G + (b.G - a.G) * t),
+                (int)(a.B + (b.B - a.B) * t));
+        }
+
         /// <summary>圆角路径</summary>
         public static GraphicsPath RoundRect(Rectangle r, int radius)
         {
@@ -110,6 +121,8 @@ namespace ScreenShare
     public sealed class FluentButton : Control
     {
         private bool _hover, _down;
+        private float _hoverP, _downP;
+        private System.Windows.Forms.Timer _animT;
         public bool Primary { get; set; }
         public bool Danger { get; set; }
         public IconKind Icon { get; set; }
@@ -124,29 +137,49 @@ namespace ScreenShare
             Cursor = Cursors.Hand;
         }
 
-        protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
-        protected override void OnMouseLeave(EventArgs e) { _hover = false; _down = false; Invalidate(); base.OnMouseLeave(e); }
-        protected override void OnMouseDown(MouseEventArgs e) { _down = true; Invalidate(); base.OnMouseDown(e); }
-        protected override void OnMouseUp(MouseEventArgs e) { _down = false; Invalidate(); base.OnMouseUp(e); }
+        private void EnsureAnim()
+        {
+            if (_animT == null)
+            {
+                _animT = new System.Windows.Forms.Timer();
+                _animT.Interval = 15;
+                _animT.Tick += delegate
+                {
+                    float step = 0.12f;
+                    _hoverP = _hover ? Math.Min(1f, _hoverP + step) : Math.Max(0f, _hoverP - step);
+                    _downP = _down ? Math.Min(1f, _downP + step * 1.5f) : Math.Max(0f, _downP - step * 1.5f);
+                    if (_hoverP <= 0f && _downP <= 0f && !_hover && !_down) { _animT.Stop(); }
+                    Invalidate();
+                };
+            }
+            _animT.Start();
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { _hover = true; EnsureAnim(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { _hover = false; _down = false; EnsureAnim(); base.OnMouseLeave(e); }
+        protected override void OnMouseDown(MouseEventArgs e) { _down = true; EnsureAnim(); base.OnMouseDown(e); }
+        protected override void OnMouseUp(MouseEventArgs e) { _down = false; EnsureAnim(); base.OnMouseUp(e); }
 
         protected override void OnPaint(PaintEventArgs e)
         {
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             Rectangle r = new Rectangle(0, 0, Width - 1, Height - 1);
-            Color bg;
-            if (!Enabled) bg = Color.FromArgb(50, 50, 50);
-            else if (Primary) bg = _hover ? F.C.AccentHov : F.C.Accent;
-            else if (Danger) bg = _hover ? F.C.DangerHov : F.C.Danger;
-            else bg = _hover ? F.C.NavHover : F.C.NavBg;
-            if (_down && Enabled) bg = ControlPaint.Dark(bg, 0.08f);
+            Color idle, hover;
+            if (!Enabled) { idle = Color.FromArgb(50, 50, 50); hover = idle; }
+            else if (Primary) { idle = F.C.Accent; hover = F.C.AccentHov; }
+            else if (Danger) { idle = F.C.Danger; hover = F.C.DangerHov; }
+            else { idle = F.C.NavBg; hover = F.C.NavHover; }
+            // 悬停颜色平滑过渡 + 按下轻微加深
+            Color bg = F.Lerp(idle, hover, _hoverP);
+            if (_downP > 0f) bg = ControlPaint.Dark(bg, 0.10f * _downP);
 
             using (GraphicsPath path = F.RoundRect(r, 6))
             using (SolidBrush b = new SolidBrush(bg))
                 g.FillPath(b, path);
 
-            Color tc = Primary ? Color.FromArgb(8, 30, 45) : (Enabled ? F.C.Text : (DisabledText));
-            // 图标 + 文字整体居中（Icon 与 Text 作为一组度量）
+            Color tc = Primary ? Color.FromArgb(8, 30, 45) : (Enabled ? F.C.Text : DisabledText);
+            // 图标 + 文字整体居中
             int iconSize = 15;
             bool hasIcon = Icon != IconKind.None;
             string text = Text ?? "";
@@ -155,9 +188,10 @@ namespace ScreenShare
             int totalW = (hasIcon ? iconSize + gap : 0) + ts.Width;
             int sx = (Width - totalW) / 2;
             if (sx < 4) sx = 4;
+            int lift = (int)(_downP * 1f); // 按下时内容微降
             if (hasIcon)
-                FluentIcon.Draw(g, Icon, sx, (Height - iconSize) / 2, iconSize, tc);
-            Rectangle textArea = new Rectangle(sx + (hasIcon ? iconSize + gap : 0), 0, ts.Width + 4, Height);
+                FluentIcon.Draw(g, Icon, sx, (Height - iconSize) / 2 + lift, iconSize, tc);
+            Rectangle textArea = new Rectangle(sx + (hasIcon ? iconSize + gap : 0), lift, ts.Width + 4, Height);
             TextRenderer.DrawText(g, text, Font, textArea, tc,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
 
@@ -275,7 +309,9 @@ namespace ScreenShare
     {
         private bool _hover;
         private bool _selected;
-        public bool Selected { get { return _selected; } set { _selected = value; Invalidate(); } }
+        private float _hoverP, _selP;
+        private System.Windows.Forms.Timer _animT;
+        public bool Selected { get { return _selected; } set { _selected = value; EnsureAnim(); Invalidate(); } }
         public IconKind Icon { get; set; }
 
         public NavItem()
@@ -286,31 +322,50 @@ namespace ScreenShare
             Cursor = Cursors.Hand;
         }
 
-        protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
-        protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); base.OnMouseLeave(e); }
+        private void EnsureAnim()
+        {
+            if (_animT == null)
+            {
+                _animT = new System.Windows.Forms.Timer();
+                _animT.Interval = 15;
+                _animT.Tick += delegate
+                {
+                    float step = 0.12f;
+                    _hoverP = _hover ? Math.Min(1f, _hoverP + step) : Math.Max(0f, _hoverP - step);
+                    _selP = _selected ? Math.Min(1f, _selP + step) : Math.Max(0f, _selP - step);
+                    if (_hoverP <= 0f && _selP <= 0f && !_hover && !_selected) _animT.Stop();
+                    Invalidate();
+                };
+            }
+            _animT.Start();
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { _hover = true; EnsureAnim(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { _hover = false; EnsureAnim(); base.OnMouseLeave(e); }
 
         protected override void OnPaint(PaintEventArgs e)
         {
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             Rectangle r = new Rectangle(8, 2, Width - 16, Height - 4);
-            if (Selected)
+            if (_hoverP > 0.01f || _selP > 0.01f)
             {
+                // 悬停背景叠加上选中背景，均平滑过渡
+                Color bg = Color.FromArgb((int)(46 * Math.Min(1f, _hoverP + _selP)), 46, 46, 46);
                 using (GraphicsPath path = F.RoundRect(r, 6))
-                using (SolidBrush b = new SolidBrush(F.C.NavHover))
+                using (SolidBrush b = new SolidBrush(bg))
                     g.FillPath(b, path);
-                using (SolidBrush b = new SolidBrush(F.C.Accent))
-                    g.FillRectangle(b, 8, 12, 3, Height - 24);
             }
-            else if (_hover)
+            // 选中强调条：宽度 0→3 动画
+            if (_selP > 0.01f)
             {
-                using (GraphicsPath path = F.RoundRect(r, 6))
-                using (SolidBrush b = new SolidBrush(Color.FromArgb(46, 46, 46)))
-                    g.FillPath(b, path);
+                int bw = (int)(3f * _selP);
+                if (bw > 0)
+                    using (SolidBrush b = new SolidBrush(F.C.Accent))
+                        g.FillRectangle(b, 8, 12, bw, Height - 24);
             }
 
-            Color tc = Selected ? F.C.Accent : (_hover ? F.C.Text : F.C.TextDim);
-            // 图标 + 文字作为整体在内容区（避开左侧强调条）水平居中
+            // 图标 + 文字整体在内容区水平居中；颜色按悬停/选中平滑过渡
             string text = Text ?? "";
             Size ts = TextRenderer.MeasureText(e.Graphics, text, F.BaseFont);
             int iconSize = 19;
@@ -319,6 +374,7 @@ namespace ScreenShare
             int totalW = (hasIcon ? iconSize + gap : 0) + ts.Width;
             int cx = 8 + ((Width - 16) - totalW) / 2;
             if (cx < 14) cx = 14;
+            Color tc = F.Lerp(F.Lerp(F.C.TextDim, F.C.Text, _hoverP), F.C.Accent, _selP);
             if (hasIcon)
                 FluentIcon.Draw(g, Icon, cx, (Height - iconSize) / 2, iconSize, tc);
             TextRenderer.DrawText(g, text, F.BaseFont,
@@ -327,12 +383,56 @@ namespace ScreenShare
         }
     }
 
-    /// <summary>Fluent 单选按钮（自绘圆形，同父分组互斥）</summary>
+    /// <summary>轻量补间动画器（easeOutCubic；delay + duration，OnFrame 传进度 t 0..1）</summary>
+    public sealed class Anim
+    {
+        private readonly System.Windows.Forms.Timer _timer;
+        private readonly System.Diagnostics.Stopwatch _sw = new System.Diagnostics.Stopwatch();
+        private readonly float _delayMs, _durMs;
+        private readonly Action<float> _frame;
+        private readonly Action _done;
+
+        public Anim(float delayMs, float durMs, Action<float> frame, Action done = null)
+        {
+            _delayMs = delayMs; _durMs = durMs; _frame = frame; _done = done;
+            _sw.Start();
+            _timer = new System.Windows.Forms.Timer();
+            _timer.Interval = 16;
+            _timer.Tick += OnTick;
+            _timer.Start();
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            float el = (float)_sw.Elapsed.TotalMilliseconds - _delayMs;
+            if (el < 0f) return;
+            float raw = el / _durMs;
+            if (raw >= 1f)
+            {
+                _frame(1f);
+                _timer.Stop();
+                _timer.Dispose();
+                if (_done != null) _done();
+                return;
+            }
+            _frame(Ease(raw));
+        }
+
+        public static float Ease(float x)
+        {
+            float t = x < 0f ? 0f : (x > 1f ? 1f : x);
+            return 1f - (float)Math.Pow(1f - t, 3);
+        }
+    }
+
+    /// <summary>Fluent 单选按钮（自绘圆形，同父分组互斥，选中带动画）</summary>
     public sealed class FluentRadio : Control
     {
         public event EventHandler CheckedChanged;
         private bool _checked;
         private bool _hover;
+        private float _ckP;
+        private System.Windows.Forms.Timer _animT;
 
         public bool Checked
         {
@@ -346,12 +446,30 @@ namespace ScreenShare
                     foreach (Control c in Parent.Controls)
                         if (c is FluentRadio && c != this) ((FluentRadio)c).Silent(false);
                 }
+                EnsureAnim();
                 Invalidate();
                 if (CheckedChanged != null) CheckedChanged(this, EventArgs.Empty);
             }
         }
 
-        private void Silent(bool v) { _checked = v; Invalidate(); }
+        private void Silent(bool v) { _checked = v; EnsureAnim(); Invalidate(); }
+
+        private void EnsureAnim()
+        {
+            if (_animT == null)
+            {
+                _animT = new System.Windows.Forms.Timer();
+                _animT.Interval = 15;
+                _animT.Tick += delegate
+                {
+                    float step = 0.09f;
+                    float target = _checked ? 1f : 0f;
+                    _ckP = _ckP < target ? Math.Min(target, _ckP + step) : Math.Max(target, _ckP - step);
+                    Invalidate();
+                };
+            }
+            _animT.Start();
+        }
 
         public FluentRadio()
         {
@@ -373,12 +491,15 @@ namespace ScreenShare
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             int cy = Height / 2;
-            Color rim = Checked ? F.C.Accent : (_hover ? Color.FromArgb(190, 190, 190) : Color.FromArgb(140, 140, 140));
+            Color rim = F.Lerp(_hover ? Color.FromArgb(180, 180, 180) : Color.FromArgb(140, 140, 140), F.C.Accent, _ckP);
             using (Pen pen = new Pen(rim, 2f))
                 g.DrawEllipse(pen, 3, cy - 6, 12, 12);
-            if (Checked)
+            if (_ckP > 0.01f)
+            {
+                float r = 4f * _ckP;
                 using (SolidBrush b = new SolidBrush(F.C.Accent))
-                    g.FillEllipse(b, 7, cy - 2, 4, 4);
+                    g.FillEllipse(b, 7.5f - r, cy - r, r * 2f, r * 2f);
+            }
             TextRenderer.DrawText(g, Text, Font, new Rectangle(21, 0, Width - 23, Height), ForeColor,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
         }
@@ -390,11 +511,37 @@ namespace ScreenShare
         public event EventHandler CheckedChanged;
         private bool _checked;
         private bool _hover;
+        private float _ckP;
+        private System.Windows.Forms.Timer _animT;
 
         public bool Checked
         {
             get { return _checked; }
-            set { if (_checked == value) return; _checked = value; Invalidate(); if (CheckedChanged != null) CheckedChanged(this, EventArgs.Empty); }
+            set
+            {
+                if (_checked == value) return;
+                _checked = value;
+                EnsureAnim();
+                Invalidate();
+                if (CheckedChanged != null) CheckedChanged(this, EventArgs.Empty);
+            }
+        }
+
+        private void EnsureAnim()
+        {
+            if (_animT == null)
+            {
+                _animT = new System.Windows.Forms.Timer();
+                _animT.Interval = 15;
+                _animT.Tick += delegate
+                {
+                    float step = 0.09f;
+                    float target = _checked ? 1f : 0f;
+                    _ckP = _ckP < target ? Math.Min(target, _ckP + step) : Math.Max(target, _ckP - step);
+                    Invalidate();
+                };
+            }
+            _animT.Start();
         }
 
         public FluentCheck()
@@ -420,21 +567,19 @@ namespace ScreenShare
             Rectangle box = new Rectangle(3, cy - 6, 12, 12);
             using (GraphicsPath path = F.RoundRect(box, 3))
             {
-                if (Checked)
+                if (_ckP > 0.01f)
                 {
-                    using (SolidBrush b = new SolidBrush(F.C.Accent)) g.FillPath(b, path);
-                    using (Pen pen = new Pen(Color.FromArgb(10, 40, 60), 2f))
+                    Color fill = F.Lerp(Color.Transparent, F.C.Accent, _ckP);
+                    using (SolidBrush b = new SolidBrush(fill)) g.FillPath(b, path);
+                    using (Pen pen = new Pen(Color.FromArgb((int)(170 * _ckP), 10, 40, 60), 2f))
                     {
                         pen.StartCap = LineCap.Round; pen.EndCap = LineCap.Round;
                         g.DrawLine(pen, 6, cy, 9, cy + 3);
                         g.DrawLine(pen, 9, cy + 3, 13, cy - 3);
                     }
                 }
-                else
-                {
-                    using (Pen pen = new Pen(_hover ? Color.FromArgb(190, 190, 190) : Color.FromArgb(140, 140, 140), 1.6f))
-                        g.DrawPath(pen, path);
-                }
+                using (Pen pen = new Pen(_hover ? Color.FromArgb(190, 190, 190) : Color.FromArgb(140, 140, 140), 1.6f))
+                    g.DrawPath(pen, path);
             }
             TextRenderer.DrawText(g, Text, Font, new Rectangle(21, 0, Width - 23, Height), ForeColor,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);

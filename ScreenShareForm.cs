@@ -65,6 +65,7 @@ namespace ScreenShare
         private Panel _panelViewer;
         private NavItem _navShare;
         private NavItem _navViewer;
+        private TableLayoutPanel _shareRoot;
 
         public ScreenShareForm()
         {
@@ -97,8 +98,36 @@ namespace ScreenShare
             _engine.Log += AppLog;
             _engine.ClientCountChanged += OnClients;
 
-            Load += (s, e) => { Dwm.Apply(this); RefreshIps(); StartDiscovery(); };
+            Load += (s, e) =>
+            {
+                Dwm.Apply(this);
+                RefreshIps();
+                StartDiscovery();
+                PlayEntranceAnimations();
+            };
             FormClosing += (s, e) => { _engine.Dispose(); _viewerRunning = false; };
+        }
+
+        /// <summary>入场动画：窗口淡入 + 共享页卡片依次上滑（easeOutCubic）</summary>
+        private void PlayEntranceAnimations()
+        {
+            Opacity = 0.0;
+            new Anim(0f, 260f, delegate(float t) { Opacity = t; });
+            if (_shareRoot != null)
+            {
+                int i = 0;
+                foreach (Control card in _shareRoot.Controls)
+                {
+                    int idx = i++;
+                    int left = card.Margin.Left, right = card.Margin.Right, bottom = card.Margin.Bottom;
+                    int baseTop = card.Margin.Top;
+                    new Anim(idx * 45f, 300f, delegate(float t)
+                    {
+                        int top = (int)(baseTop + 24f * (1f - t));
+                        card.Margin = new Padding(left, top, right, bottom);
+                    });
+                }
+            }
         }
 
         /* =================================================================== */
@@ -270,6 +299,7 @@ namespace ScreenShare
             page.BackColor = F.C.WindowBg;
 
             TableLayoutPanel root = MakeTable(1, 6);
+            _shareRoot = root;
             root.Padding = new Padding(12, 10, 12, 10);
             root.AutoScroll = true;
             root.RowStyles.Clear();
