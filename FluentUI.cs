@@ -174,11 +174,17 @@ namespace ScreenShare
         protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
     }
 
-    /// <summary>Fluent 圆角卡片（背景 + 边框 + 左上角小标题）</summary>
+    /// <summary>Fluent 圆角卡片（背景 + 边框 + 顶层标题 Label，不被内容区遮挡）</summary>
     public sealed class FluentCard : Panel
     {
+        private readonly Label _cap;
         private string _caption = "";
-        public string Caption { get { return _caption; } set { _caption = value; Invalidate(); } }
+
+        public string Caption
+        {
+            get { return _caption; }
+            set { _caption = value; _cap.Text = value; }
+        }
 
         public FluentCard()
         {
@@ -186,6 +192,22 @@ namespace ScreenShare
                      ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw |
                      ControlStyles.SupportsTransparentBackColor, true);
             BackColor = F.C.Card;
+            _cap = new Label();
+            _cap.Font = F.CaptionFont;
+            _cap.ForeColor = Color.FromArgb(205, 205, 205);
+            _cap.BackColor = F.C.Card;
+            _cap.AutoSize = true;
+            _cap.Location = new Point(14, 10);
+            Controls.Add(_cap);
+            Controls.SetChildIndex(_cap, 0); // 顶层：不被内容区覆盖
+            // 任何后续内容加入后，标题保持顶层
+            ControlAdded += delegate { Controls.SetChildIndex(_cap, 0); };
+        }
+
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            _cap.Location = new Point(14, 10);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -199,11 +221,6 @@ namespace ScreenShare
             {
                 g.FillPath(b, path);
                 g.DrawPath(p, path);
-            }
-            if (Caption.Length > 0)
-            {
-                TextRenderer.DrawText(g, Caption, F.CaptionFont, new Rectangle(14, 10, Width - 28, 20),
-                    Color.FromArgb(200, 200, 200), TextFormatFlags.Left);
             }
         }
     }

@@ -120,14 +120,6 @@ namespace ScreenShare
             title.SetBounds(16, 8, 0, 0);
             title.MouseDown += HeaderDrag;
 
-            Label sub = new Label();
-            sub.Text = "局域网 · 零配置 · 自动联系";
-            sub.Font = F.SmallFont;
-            sub.ForeColor = F.C.TextDim;
-            sub.AutoSize = true;
-            sub.SetBounds(84, 13, 0, 0);
-            sub.MouseDown += HeaderDrag;
-
             CaptionButton btnMin = new CaptionButton();
             btnMin.SvgGlyph = "M5 12h14";
             CaptionButton btnMax = new CaptionButton();
@@ -158,7 +150,6 @@ namespace ScreenShare
             btnClose.Click += (s, e) => Close();
 
             header.Controls.Add(title);
-            header.Controls.Add(sub);
             header.Controls.Add(tbtns);
             Controls.Add(header);
         }
