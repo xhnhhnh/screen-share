@@ -17,11 +17,15 @@ namespace ScreenShare
         public static GraphicsPath Parse(string d)
         {
             GraphicsPath gp;
-            if (Cache.TryGetValue(d, out gp)) return gp;
+            if (Cache.TryGetValue(d, out gp))
+            {
+                // 缓存持有原件；调用方（using 释放）拿到克隆，避免销毁共享缓存对象
+                return (GraphicsPath)gp.Clone();
+            }
             gp = new GraphicsPath();
             Build(d, gp);
             Cache[d] = gp;
-            return gp;
+            return (GraphicsPath)gp.Clone();
         }
 
         private static List<string> Tokenize(string d)
