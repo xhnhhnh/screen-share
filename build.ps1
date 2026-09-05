@@ -10,6 +10,7 @@ Push-Location $PSScriptRoot
 try {
     $common = @(
         "/nologo", "/optimize+", "/target:winexe", "/platform:anycpu",
+        "/win32manifest:app.manifest",
         "/r:$fw\System.dll",
         "/r:$fw\System.Drawing.dll",
         "/r:$fw\System.Windows.Forms.dll",

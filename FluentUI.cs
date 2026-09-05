@@ -48,12 +48,80 @@ namespace ScreenShare
         }
     }
 
-    /// <summary>Fluent 扁平按钮（圆角 / hover / 主色 / 危险色 / 禁用态）</summary>
+    /// <summary>内嵌矢量图标（GDI+ 线条绘制，等价 SVG path，任意 DPI 锐利）</summary>
+    public enum IconKind { None, Screen, Eye, Link, Play, Stop, Fullscreen, Bridge, Refresh }
+
+    public static class FluentIcon
+    {
+        /// <summary>在 (x,y) 画 size×size 图标（24 逻辑坐标设计）</summary>
+        public static void Draw(Graphics g, IconKind kind, int x, int y, int size, Color color)
+        {
+            if (kind == IconKind.None) return;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            using (Pen p = new Pen(color, 1.7f))
+            {
+                p.StartCap = LineCap.Round;
+                p.EndCap = LineCap.Round;
+                p.LineJoin = LineJoin.Round;
+                float k = size / 24f;
+                Func<float, float> X = delegate(float v) { return x + v * k; };
+                Func<float, float> Y = delegate(float v) { return y + v * k; };
+                Action<float, float, float, float> L = delegate(float x1, float y1, float x2, float y2)
+                {
+                    g.DrawLine(p, X(x1), Y(y1), X(x2), Y(y2));
+                };
+
+                switch (kind)
+                {
+                    case IconKind.Screen: // 显示器
+                        g.DrawRectangle(p, X(3), Y(4), 18 * k, 12 * k);
+                        L(9, 20, 15, 20);
+                        L(12, 16, 12, 20);
+                        break;
+                    case IconKind.Eye: // 眼睛
+                        g.DrawBezier(p, X(2.5f), Y(12), X(8), Y(5), X(16), Y(5), X(21.5f), Y(12));
+                        g.DrawBezier(p, X(2.5f), Y(12), X(8), Y(19), X(16), Y(19), X(21.5f), Y(12));
+                        g.FillEllipse(p.Brush, X(10.6f), Y(10.6f), 2.8f * k, 2.8f * k);
+                        break;
+                    case IconKind.Link: // 链接（两环）
+                        g.DrawArc(p, X(3), Y(9), 10 * k, 10 * k, 130, 190);
+                        g.DrawArc(p, X(11), Y(9), 10 * k, 10 * k, -50, 190);
+                        break;
+                    case IconKind.Play: // 播放三角
+                        L(8, 5.5f, 8, 18.5f);
+                        L(8, 5.5f, 19, 12);
+                        L(8, 18.5f, 19, 12);
+                        break;
+                    case IconKind.Stop: // 停止方块
+                        g.DrawRectangle(p, X(6.5f), Y(6.5f), 11 * k, 11 * k);
+                        break;
+                    case IconKind.Fullscreen: // 四角
+                        L(4, 9, 4, 4); L(4, 4, 9, 4);
+                        L(15, 4, 20, 4); L(20, 4, 20, 9);
+                        L(20, 15, 20, 20); L(20, 20, 15, 20);
+                        L(9, 20, 4, 20); L(4, 20, 4, 15);
+                        break;
+                    case IconKind.Bridge: // 双端箭头（点对点）
+                        L(4, 12, 20, 12);
+                        L(15, 7, 20, 12); L(15, 17, 20, 12);
+                        L(9, 7, 4, 12); L(9, 17, 4, 12);
+                        break;
+                    case IconKind.Refresh: // 刷新
+                        g.DrawArc(p, X(6), Y(6), 12 * k, 12 * k, -30, 250);
+                        L(18, 3, 18.5f, 8); L(18, 8, 13.5f, 8);
+                        break;
+                }
+            }
+        }
+    }
+
+    /// <summary>Fluent 扁平按钮（圆角 / hover / 主色 / 危险色 / 禁用态 / 矢量图标）</summary>
     public sealed class FluentButton : Control
     {
         private bool _hover, _down;
         public bool Primary { get; set; }
         public bool Danger { get; set; }
+        public IconKind Icon { get; set; }
 
         public FluentButton()
         {
@@ -87,10 +155,18 @@ namespace ScreenShare
                 g.FillPath(b, path);
 
             Color tc = Primary ? Color.FromArgb(8, 30, 45) : (Enabled ? F.C.Text : F.C.TextDim);
-            TextRenderer.DrawText(g, Text, Font, ClientRectangle, tc,
+            Rectangle textArea = ClientRectangle;
+            if (Icon != IconKind.None)
+            {
+                int iconSize = 15;
+                int ix = 14;
+                int iy = (Height - iconSize) / 2;
+                FluentIcon.Draw(g, Icon, ix, iy, iconSize, tc);
+                textArea = new Rectangle(ix + iconSize + 8, 0, Width - (ix + iconSize + 8) - 12, Height);
+            }
+            TextRenderer.DrawText(g, Text, Font, textArea, tc,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
 
-            // 键盘焦点虚框
             if (Focused && ShowFocusCues)
             {
                 using (Pen p = new Pen(Color.FromArgb(120, 255, 255, 255)) { DashStyle = DashStyle.Dot })
@@ -182,13 +258,13 @@ namespace ScreenShare
         }
     }
 
-    /// <summary>左侧导航项（Win11 NavigationView 风格）</summary>
+    /// <summary>左侧导航项（Win11 NavigationView 风格，含矢量图标）</summary>
     public sealed class NavItem : Control
     {
         private bool _hover;
         private bool _selected;
         public bool Selected { get { return _selected; } set { _selected = value; Invalidate(); } }
-        public string Glyph { get; set; }
+        public IconKind Icon { get; set; }
 
         public NavItem()
         {
@@ -221,9 +297,10 @@ namespace ScreenShare
                     g.FillPath(b, path);
             }
 
-            TextRenderer.DrawText(g, Glyph + "  " + Text, F.BaseFont,
-                new Rectangle(22, 0, Width - 26, Height),
-                Selected ? F.C.Accent : ( _hover ? F.C.Text : F.C.TextDim),
+            Color tc = Selected ? F.C.Accent : (_hover ? F.C.Text : F.C.TextDim);
+            if (Icon != IconKind.None)
+                FluentIcon.Draw(g, Icon, 27, (Height - 19) / 2, 19, tc);
+            TextRenderer.DrawText(g, Text, F.BaseFont, new Rectangle(56, 0, Width - 62, Height), tc,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
         }
     }

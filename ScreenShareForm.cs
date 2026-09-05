@@ -76,6 +76,10 @@ namespace ScreenShare
             FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.CenterScreen;
 
+            // 高 DPI：配合 manifest 的 PerMonitorV2，让运行时添加的控件随 DPI 缩放
+            AutoScaleMode = AutoScaleMode.Dpi;
+            AutoScaleDimensions = new SizeF(96F, 96F);
+
             BuildHeader();
             BuildNav();
             ConfigureSharing();
@@ -163,11 +167,13 @@ namespace ScreenShare
 
             _navShare = new NavItem();
             _navShare.Text = "共享端（发送）";
+            _navShare.Icon = IconKind.Screen;
             _navShare.SetBounds(0, 16, 190, 42);
             _navShare.Click += (s, e) => ShowSharePanel();
 
             _navViewer = new NavItem();
             _navViewer.Text = "观看端（接收）";
+            _navViewer.Icon = IconKind.Eye;
             _navViewer.SetBounds(0, 62, 190, 42);
             _navViewer.Click += (s, e) => ShowViewerPanel();
 
@@ -266,7 +272,8 @@ namespace ScreenShare
             Label lbHint2 = MakeLabel("两台电脑同时点击，3 分钟内自动完成（USB4 连线 + UAC 选「是」）", 296, 40, 380, 22, F.C.TextDim);
             _btnBridge = new FluentButton();
             _btnBridge.Text = "自动配置雷电网桥";
-            _btnBridge.SetBounds(700, 36, 200, 34);
+            _btnBridge.Icon = IconKind.Bridge;
+            _btnBridge.SetBounds(700, 36, 220, 34);
             _btnBridge.Click += (s, e) => OnBridge();
             cBridge.Controls.Add(_chkShare);
             cBridge.Controls.Add(lbHint2);
@@ -277,12 +284,14 @@ namespace ScreenShare
             _btnStart = new FluentButton();
             _btnStart.Text = "开始共享";
             _btnStart.Primary = true;
+            _btnStart.Icon = IconKind.Play;
             _btnStart.Size = new Size(148, 38);
             _btnStart.SetBounds(12, 310, 148, 38);
             _btnStart.Click += (s, e) => StartShare();
             _btnStop = new FluentButton();
             _btnStop.Text = "停止共享";
             _btnStop.Danger = true;
+            _btnStop.Icon = IconKind.Stop;
             _btnStop.Size = new Size(148, 38);
             _btnStop.SetBounds(170, 310, 148, 38);
             _btnStop.Enabled = false;
@@ -342,13 +351,15 @@ namespace ScreenShare
 
             FluentButton btnManual = new FluentButton();
             btnManual.Text = "直连";
-            btnManual.SetBounds(798, 8, 64, 30);
+            btnManual.Icon = IconKind.Link;
+            btnManual.SetBounds(798, 8, 70, 30);
             btnManual.Click += (s, e) => ManualConnect();
             page.Controls.Add(btnManual);
 
             FluentButton btnFull = new FluentButton();
-            btnFull.Text = "全屏 (F11)";
-            btnFull.SetBounds(870, 8, 88, 30);
+            btnFull.Text = "全屏";
+            btnFull.Icon = IconKind.Fullscreen;
+            btnFull.SetBounds(876, 8, 84, 30);
             btnFull.Click += (s, e) => ToggleFullscreen();
             page.Controls.Add(btnFull);
 
