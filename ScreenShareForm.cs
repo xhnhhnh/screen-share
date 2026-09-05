@@ -61,6 +61,14 @@ namespace ScreenShare
         private int _fpsShown;
         private DateTime _fpsTime = DateTime.Now;
 
+        // 窗口化全屏相关
+        private TableLayoutPanel _vTopTable;
+        private TableLayoutPanel _vBodyTable;
+        private Control _cFindCard;
+        private Control _vInfoRow;
+        private FluentButton _btnWinExit;
+        private bool _windowed;
+
         private Panel _panelShare;
         private Panel _panelViewer;
         private NavItem _navShare;
@@ -475,6 +483,7 @@ namespace ScreenShare
 
             // ---- 顶栏 ----
             TableLayoutPanel top = MakeTable(5, 1);
+            _vTopTable = top;
             top.ColumnStyles.Clear();
             top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             top.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180));
@@ -497,16 +506,24 @@ namespace ScreenShare
             btnFull.Text = "全屏";
             btnFull.Icon = IconKind.Fullscreen;
             btnFull.Size = new Size(84, 30);
-            btnFull.Margin = new Padding(0, 3, 0, 0);
+            btnFull.Margin = new Padding(0, 3, 8, 0);
             btnFull.Click += (s, e) => ToggleFullscreen();
+            FluentButton btnWin = new FluentButton();
+            btnWin.Text = "窗口化全屏";
+            btnWin.Icon = IconKind.Screen;
+            btnWin.Size = new Size(120, 30);
+            btnWin.Margin = new Padding(0, 3, 0, 0);
+            btnWin.Click += (s, e) => ToggleWindowed();
             top.Controls.Add(_vStatus, 0, 0);
             top.Controls.Add(_txtManual, 1, 0);
             top.Controls.Add(btnManual, 2, 0);
             top.Controls.Add(btnFull, 3, 0);
+            top.Controls.Add(btnWin, 4, 0);
             root.Controls.Add(top, 0, 0);
 
             // ---- 主体：左列表 + 画面 ----
             TableLayoutPanel body = MakeTable(2, 1);
+            _vBodyTable = body;
             body.Margin = new Padding(0, 8, 0, 8);
             body.ColumnStyles.Clear();
             body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 250));
@@ -516,6 +533,7 @@ namespace ScreenShare
             cFind.Caption = "自动发现的共享端（双击连接）";
             cFind.Dock = DockStyle.Fill;
             cFind.Margin = new Padding(0, 0, 10, 0);
+            _cFindCard = cFind;
             TableLayoutPanel tFind = CardBody(cFind, 12, 12, 12);
             _vList = new FluentListView();
             _vList.Columns.Add("主机", 88);
@@ -539,6 +557,17 @@ namespace ScreenShare
             _pic.DoubleClick += (s, e) => ToggleFullscreen();
             _picHostPanel.Controls.Add(_pic);
             tFrame.Controls.Add(_picHostPanel, 0, 0);
+            // 窗口化全屏模式下的退出按钮（悬浮右上）
+            _btnWinExit = new FluentButton();
+            _btnWinExit.Text = "退出窗口化";
+            _btnWinExit.Icon = IconKind.Screen;
+            _btnWinExit.Size = new Size(110, 28);
+            _btnWinExit.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            _btnWinExit.Location = new Point(cFrame.Width - 122, 6);
+            _btnWinExit.Visible = false;
+            _btnWinExit.Click += (s, e) => ToggleWindowed();
+            cFrame.Resize += (s, e) => _btnWinExit.Location = new Point(cFrame.Width - 122, 6);
+            cFrame.Controls.Add(_btnWinExit);
             body.Controls.Add(cFrame, 1, 0);
 
             root.Controls.Add(body, 0, 1);
@@ -563,10 +592,32 @@ namespace ScreenShare
             root.Controls.Remove(lHint3);
             root.Controls.Remove(_vInfo);
             root.Controls.Add(infoRow, 0, 2);
+            _vInfoRow = infoRow;
 
             KeyPreview = true;
-            KeyDown += (s, e) => { if (e.KeyCode == Keys.F11) { ToggleFullscreen(); e.Handled = true; } };
+            KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.F11) { ToggleFullscreen(); e.Handled = true; }
+                else if (e.KeyCode == Keys.Escape && _windowed) { ToggleWindowed(); e.Handled = true; }
+            };
             return page;
+        }
+
+        /// <summary>窗口化全屏：隐藏顶栏/列表/信息，画面撑满内容区；Esc 或悬浮按钮退出</summary>
+        private void ToggleWindowed()
+        {
+            _windowed = !_windowed;
+            _vTopTable.Visible = !_windowed;
+            _vInfoRow.Visible = !_windowed;
+            if (_cFindCard != null)
+            {
+                _cFindCard.Visible = !_windowed;
+                _vBodyTable.ColumnStyles[0] = _windowed
+                    ? new ColumnStyle(SizeType.Absolute, 0)
+                    : new ColumnStyle(SizeType.Absolute, 250);
+            }
+            _btnWinExit.Visible = _windowed;
+            // 窗口化时切换隐藏“共享端”关联提示不影响——画面卡自动占满
         }
 
         /* =================================================================== */
