@@ -13,8 +13,8 @@ using System.Windows.Forms;
 namespace ScreenShare
 {
     /// <summary>
-    /// Win11 Fluent 风格 · 共享 / 观看 二合一主窗口。
-    /// 无边框圆角窗体 + 自定义标题栏 + 左侧导航 + 圆角卡片，全部逻辑与旧版一致。
+    /// Win11 Fluent 风格 · 共享 / 观看 二合一主窗口（前端 v2：TableLayoutPanel 流式布局重构）。
+    /// 逻辑与协议不变；布局全部改为 AutoSize / Dock / TableLayout，DPI 与尺寸变化不再错位。
     /// </summary>
     public sealed class ScreenShareForm : Form
     {
@@ -75,21 +75,17 @@ namespace ScreenShare
             ForeColor = F.C.Text;
             FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.CenterScreen;
-
-            // 高 DPI：配合 manifest 的 PerMonitorV2，让运行时添加的控件随 DPI 缩放
             AutoScaleMode = AutoScaleMode.Dpi;
             AutoScaleDimensions = new SizeF(96F, 96F);
 
             BuildHeader();
             BuildNav();
-            ConfigureSharing();
             _panelShare = BuildSharePanel();
             _panelViewer = BuildViewerPanel();
-            ConfigureViewer();
 
-            // 内容区容器
             Panel content = new Panel();
-            content.SetBounds(190, 40, 1160 - 190, 740 - 40);
+            content.Dock = DockStyle.Fill;
+            content.Padding = new Padding(200, 40, 0, 0);
             content.Controls.Add(_panelShare);
             content.Controls.Add(_panelViewer);
             Controls.Add(content);
@@ -108,7 +104,8 @@ namespace ScreenShare
         private void BuildHeader()
         {
             Panel header = new Panel();
-            header.SetBounds(0, 0, 1160, 40);
+            header.Dock = DockStyle.Top;
+            header.Height = 40;
             header.BackColor = F.C.WindowBg;
             header.MouseDown += HeaderDrag;
 
@@ -116,37 +113,50 @@ namespace ScreenShare
             title.Text = "屏幕共享";
             title.Font = F.TitleFont;
             title.ForeColor = F.C.Text;
-            title.SetBounds(16, 8, 140, 24);
+            title.AutoSize = true;
+            title.SetBounds(16, 8, 0, 0);
             title.MouseDown += HeaderDrag;
 
             Label sub = new Label();
             sub.Text = "局域网 · 零配置 · 自动联系";
             sub.Font = F.SmallFont;
             sub.ForeColor = F.C.TextDim;
-            sub.SetBounds(150, 13, 220, 20);
+            sub.AutoSize = true;
+            sub.SetBounds(84, 13, 0, 0);
             sub.MouseDown += HeaderDrag;
 
             CaptionButton btnMin = new CaptionButton();
             btnMin.SvgGlyph = "M5 12h14";
-            btnMin.SetBounds(1160 - 46 * 3, 3, 46, 34);
-            btnMin.Click += (s, e) => WindowState = FormWindowState.Minimized;
-
             CaptionButton btnMax = new CaptionButton();
             btnMax.SvgGlyph = "M5.5 5.5h13v13h-13z";
-            btnMax.SetBounds(1160 - 46 * 2, 3, 46, 34);
+            CaptionButton btnClose = new CaptionButton();
+            btnClose.Close = true;
+            btnClose.SvgGlyph = "M6.5 6.5l11 11M17.5 6.5l-11 11";
+
+            // 标题栏按钮流式靠右
+            TableLayoutPanel tbtns = new TableLayoutPanel();
+            tbtns.Dock = DockStyle.Right;
+            tbtns.Width = 46 * 3;
+            tbtns.Height = 40;
+            tbtns.ColumnCount = 3;
+            tbtns.RowCount = 1;
+            for (int i = 0; i < 3; i++) tbtns.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 46));
+            tbtns.Controls.Add(btnMin, 0, 0);
+            tbtns.Controls.Add(btnMax, 1, 0);
+            tbtns.Controls.Add(btnClose, 2, 0);
+            btnMin.Dock = DockStyle.Top; btnMax.Dock = DockStyle.Top; btnClose.Dock = DockStyle.Top;
+            btnMin.Height = 34; btnMax.Height = 34; btnClose.Height = 34;
+            btnMin.Click += (s, e) => WindowState = FormWindowState.Minimized;
             btnMax.Click += (s, e) =>
             {
                 if (WindowState == FormWindowState.Maximized) WindowState = FormWindowState.Normal;
                 else WindowState = FormWindowState.Maximized;
             };
-
-            CaptionButton btnClose = new CaptionButton();
-            btnClose.Close = true;
-            btnClose.SvgGlyph = "M6.5 6.5l11 11M17.5 6.5l-11 11";
-            btnClose.SetBounds(1160 - 46, 3, 46, 34);
             btnClose.Click += (s, e) => Close();
 
-            header.Controls.AddRange(new Control[] { title, sub, btnMin, btnMax, btnClose });
+            header.Controls.Add(title);
+            header.Controls.Add(sub);
+            header.Controls.Add(tbtns);
             Controls.Add(header);
         }
 
@@ -163,28 +173,35 @@ namespace ScreenShare
         private void BuildNav()
         {
             Panel nav = new Panel();
-            nav.SetBounds(0, 40, 190, 740 - 40);
+            nav.Dock = DockStyle.Left;
+            nav.Width = 190;
             nav.BackColor = F.C.NavBg;
 
             _navShare = new NavItem();
             _navShare.Text = "共享端（发送）";
             _navShare.Icon = IconKind.Screen;
-            _navShare.SetBounds(0, 16, 190, 42);
-            _navShare.Click += (s, e) => ShowSharePanel();
+            _navShare.Dock = DockStyle.Top;
+            _navShare.Height = 42;
 
             _navViewer = new NavItem();
             _navViewer.Text = "观看端（接收）";
             _navViewer.Icon = IconKind.Eye;
-            _navViewer.SetBounds(0, 62, 190, 42);
+            _navViewer.Dock = DockStyle.Top;
+            _navViewer.Height = 42;
+
+            _navShare.Click += (s, e) => ShowSharePanel();
             _navViewer.Click += (s, e) => ShowViewerPanel();
 
             Label hint = new Label();
             hint.Text = "同一台电脑可同时开两个窗口\n（一个共享、一个观看）";
             hint.Font = F.SmallFont;
             hint.ForeColor = F.C.TextDim;
-            hint.SetBounds(14, 620, 170, 44);
+            hint.AutoSize = true;
+            hint.SetBounds(14, 600, 0, 0);
 
-            nav.Controls.AddRange(new Control[] { _navShare, _navViewer, hint });
+            nav.Controls.Add(hint);
+            nav.Controls.Add(_navViewer);
+            nav.Controls.Add(_navShare);
             Controls.Add(nav);
         }
 
@@ -204,211 +221,334 @@ namespace ScreenShare
             _panelViewer.Visible = true;
         }
 
-        private static Label MakeLabel(string text, int x, int y, int w, int h, Color color)
+        /* =================================================================== */
+        /* 控件工厂                                                            */
+        /* =================================================================== */
+        private static Label MakeLabel(string text, Color color, Size style)
         {
             Label l = new Label();
             l.Text = text;
             l.Font = F.BaseFont;
             l.ForeColor = color;
-            l.SetBounds(x, y, w, h);
+            l.AutoSize = true;
+            l.Margin = new Padding(0);
             return l;
         }
 
+        private static TableLayoutPanel MakeTable(int cols, int rows)
+        {
+            TableLayoutPanel t = new TableLayoutPanel();
+            t.ColumnCount = cols;
+            t.RowCount = rows;
+            t.Dock = DockStyle.Fill;
+            t.Margin = new Padding(0);
+            for (int i = 0; i < cols; i++) t.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            for (int i = 0; i < rows; i++) t.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            return t;
+        }
+
+        /// <summary>卡片：标题 + 内容区（Padding 顶部留标题 34px）</summary>
+        private static TableLayoutPanel CardBody(FluentCard card, int padL, int padR, int padB)
+        {
+            TableLayoutPanel body = new TableLayoutPanel();
+            body.Dock = DockStyle.Fill;
+            body.Padding = new Padding(padL, 32, padR, padB);
+            body.Margin = new Padding(0);
+            body.BackColor = F.C.Card;
+            card.Controls.Add(body);
+            return body;
+        }
+
         /* =================================================================== */
-        /* 共享端页面                                                          */
+        /* 共享端页面（TableLayout 流式）                                       */
         /* =================================================================== */
         private Panel BuildSharePanel()
         {
             Panel page = new Panel();
-            page.SetBounds(0, 0, 970, 700);
+            page.Dock = DockStyle.Fill;
             page.BackColor = F.C.WindowBg;
 
-            // 卡1 本机信息
+            TableLayoutPanel root = MakeTable(1, 6);
+            root.Padding = new Padding(12, 10, 12, 10);
+            root.AutoScroll = true;
+            root.RowStyles.Clear();
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // 卡1 本机信息
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // 卡2 采集设置
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // 卡3 雷电网桥
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // 按钮行
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 60F)); // 列表卡
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 40F)); // 日志卡
+            page.Controls.Add(root);
+
+            // ---- 卡1 本机信息 ----
             FluentCard cInfo = new FluentCard();
             cInfo.Caption = "本机信息（观看端会自动发现，无需填写）";
-            cInfo.SetBounds(12, 10, 946, 92);
-            _lblIp = MakeLabel("IP：加载中…", 26, 34, 900, 22, F.C.Text);
-            _lblPort = MakeLabel("端口：TCP " + Settings.Port + "　UDP 发现 " + Settings.DiscoveryPort, 26, 60, 900, 22, F.C.TextDim);
-            cInfo.Controls.Add(_lblIp);
-            cInfo.Controls.Add(_lblPort);
-            page.Controls.Add(cInfo);
+            cInfo.Dock = DockStyle.Fill;
+            cInfo.Margin = new Padding(0, 0, 0, 10);
+            TableLayoutPanel t1 = CardBody(cInfo, 26, 26, 14);
+            t1.RowCount = 2; t1.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            t1.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            _lblIp = MakeLabel("IP：加载中…", F.C.Text, new Size(0, 22));
+            _lblPort = MakeLabel("端口：TCP " + Settings.Port + "　UDP 发现 " + Settings.DiscoveryPort, F.C.TextDim, new Size(0, 22));
+            t1.Controls.Add(_lblIp, 0, 0);
+            t1.Controls.Add(_lblPort, 0, 1);
+            root.Controls.Add(cInfo, 0, 0);
 
-            // 卡2 采集设置
+            // ---- 卡2 采集设置 ----
             FluentCard cSet = new FluentCard();
             cSet.Caption = "采集设置";
-            cSet.SetBounds(12, 112, 946, 92);
+            cSet.Dock = DockStyle.Fill;
+            cSet.Margin = new Padding(0, 0, 0, 10);
+            TableLayoutPanel t2 = CardBody(cSet, 12, 12, 12);
+            t2.ColumnCount = 8;
+            t2.ColumnStyles.Clear();
+            t2.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize)); // PNG
+            t2.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize)); // JPEG
+            t2.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 36));
+            t2.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize)); // 帧率
+            t2.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
+            t2.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize)); // 质量
+            t2.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
+            t2.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 300)); // 提示
+
             _rbPng = new RadioButton();
             _rbPng.Text = "PNG 无损（无色差，推荐）";
             _rbPng.Checked = true;
-            _rbPng.SetBounds(26, 36, 220, 22);
+            _rbPng.AutoSize = true;
             _rbPng.BackColor = F.C.Card; _rbPng.ForeColor = F.C.Text;
+            _rbPng.Margin = new Padding(0, 14, 28, 0);
             _rbJpeg = new RadioButton();
             _rbJpeg.Text = "JPEG 快速";
-            _rbJpeg.SetBounds(254, 36, 130, 22);
+            _rbJpeg.AutoSize = true;
             _rbJpeg.BackColor = F.C.Card; _rbJpeg.ForeColor = F.C.Text;
-            Label lFps = MakeLabel("帧率", 396, 38, 40, 22, F.C.TextDim);
+            _rbJpeg.Margin = new Padding(0, 14, 0, 0);
+            Label lFps = MakeLabel("帧率", F.C.TextDim, new Size(0, 22));
+            lFps.Margin = new Padding(0, 17, 4, 0);
             _numFps = new NumericUpDown();
             _numFps.Minimum = 5; _numFps.Maximum = 30; _numFps.Value = Settings.Fps;
-            _numFps.SetBounds(436, 34, 62, 26);
+            _numFps.Dock = DockStyle.Top; _numFps.Height = 26; _numFps.Margin = new Padding(0, 14, 0, 0);
             _numFps.BackColor = F.C.CardAlt; _numFps.ForeColor = F.C.Text; _numFps.BorderStyle = BorderStyle.FixedSingle;
-            Label lQ = MakeLabel("质量", 510, 38, 40, 22, F.C.TextDim);
+            Label lQ = MakeLabel("质量", F.C.TextDim, new Size(0, 22));
+            lQ.Margin = new Padding(0, 17, 4, 0);
             _numQuality = new NumericUpDown();
             _numQuality.Minimum = 40; _numQuality.Maximum = 100; _numQuality.Value = Settings.Quality;
-            _numQuality.SetBounds(550, 34, 62, 26);
+            _numQuality.Dock = DockStyle.Top; _numQuality.Height = 26; _numQuality.Margin = new Padding(0, 14, 0, 0);
             _numQuality.BackColor = F.C.CardAlt; _numQuality.ForeColor = F.C.Text; _numQuality.BorderStyle = BorderStyle.FixedSingle;
             _numQuality.Enabled = false;
             _rbJpeg.CheckedChanged += (s, e) => _numQuality.Enabled = _rbJpeg.Checked;
-            Label lHint = MakeLabel("提示：追求质量用 PNG，追求流畅用 JPEG", 640, 38, 280, 22, F.C.TextDim);
-            cSet.Controls.AddRange(new Control[] { _rbPng, _rbJpeg, lFps, _numFps, lQ, _numQuality, lHint });
-            page.Controls.Add(cSet);
+            Label lHint = MakeLabel("提示：追求质量用 PNG，追求流畅用 JPEG", F.C.TextDim, new Size(0, 22));
+            lHint.Margin = new Padding(10, 17, 0, 0);
+            t2.Controls.Add(_rbPng, 0, 0);
+            t2.Controls.Add(_rbJpeg, 1, 0);
+            t2.Controls.Add(_numFps, 4, 0);
+            t2.Controls.Add(_numQuality, 6, 0);
+            root.Controls.Add(cSet, 0, 1);
 
-            // 卡3 雷电网桥
+            // ---- 卡3 雷电网桥 ----
             FluentCard cBridge = new FluentCard();
             cBridge.Caption = "雷电网桥（雷电 / USB4 点对点网络）";
-            cBridge.SetBounds(12, 214, 946, 84);
+            cBridge.Dock = DockStyle.Fill;
+            cBridge.Margin = new Padding(0, 0, 0, 10);
+            TableLayoutPanel t3 = CardBody(cBridge, 12, 12, 12);
+            t3.ColumnCount = 3;
+            t3.ColumnStyles.Clear();
+            t3.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            t3.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            t3.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             _chkShare = new CheckBox();
             _chkShare.Text = "同时允许对端访问文件共享 (SMB 445)";
-            _chkShare.SetBounds(26, 38, 260, 22);
+            _chkShare.AutoSize = true;
             _chkShare.BackColor = F.C.Card; _chkShare.ForeColor = F.C.Text;
-            Label lbHint2 = MakeLabel("两台电脑同时点击，3 分钟内自动完成（USB4 连线 + UAC 选「是」）", 296, 40, 380, 22, F.C.TextDim);
+            _chkShare.Margin = new Padding(0, 14, 0, 0);
+            Label lbHint2 = MakeLabel("两台电脑同时点击，3 分钟内自动完成（USB4 连线 + UAC 选「是」）", F.C.TextDim, new Size(0, 22));
+            lbHint2.Margin = new Padding(16, 17, 8, 0);
             _btnBridge = new FluentButton();
             _btnBridge.Text = "自动配置雷电网桥";
             _btnBridge.Icon = IconKind.Bridge;
-            _btnBridge.SetBounds(700, 36, 220, 34);
+            _btnBridge.Size = new Size(190, 32);
+            _btnBridge.Margin = new Padding(0, 7, 0, 0);
             _btnBridge.Click += (s, e) => OnBridge();
-            cBridge.Controls.Add(_chkShare);
-            cBridge.Controls.Add(lbHint2);
-            cBridge.Controls.Add(_btnBridge);
-            page.Controls.Add(cBridge);
+            t3.Controls.Add(_chkShare, 0, 0);
+            t3.Controls.Add(lbHint2, 1, 0);
+            t3.Controls.Add(_btnBridge, 2, 0);
+            root.Controls.Add(cBridge, 0, 2);
 
-            // 操作按钮
+            // ---- 按钮行（流式） ----
+            FlowLayoutPanel fl = new FlowLayoutPanel();
+            fl.Dock = DockStyle.Fill;
+            fl.Margin = new Padding(0, 0, 0, 10);
+            fl.WrapContents = false;
+            fl.AutoSize = true;
             _btnStart = new FluentButton();
             _btnStart.Text = "开始共享";
             _btnStart.Primary = true;
             _btnStart.Icon = IconKind.Play;
-            _btnStart.Size = new Size(148, 38);
-            _btnStart.SetBounds(12, 310, 148, 38);
+            _btnStart.Size = new Size(140, 36);
+            _btnStart.Margin = new Padding(0, 0, 12, 0);
             _btnStart.Click += (s, e) => StartShare();
             _btnStop = new FluentButton();
             _btnStop.Text = "停止共享";
             _btnStop.Danger = true;
             _btnStop.Icon = IconKind.Stop;
-            _btnStop.Size = new Size(148, 38);
-            _btnStop.SetBounds(170, 310, 148, 38);
+            _btnStop.Size = new Size(140, 36);
             _btnStop.Enabled = false;
             _btnStop.Click += (s, e) => StopShare();
-            page.Controls.Add(_btnStart);
-            page.Controls.Add(_btnStop);
+            fl.Controls.Add(_btnStart);
+            fl.Controls.Add(_btnStop);
+            root.Controls.Add(fl, 0, 3);
 
-            // 卡4 已连接观看端
+            // ---- 卡4 已连接观看端 ----
             FluentCard cCli = new FluentCard();
             cCli.Caption = "已连接观看端";
-            cCli.SetBounds(12, 362, 946, 168);
+            cCli.Dock = DockStyle.Fill;
+            cCli.Margin = new Padding(0, 0, 0, 10);
+            TableLayoutPanel t4 = CardBody(cCli, 12, 12, 12);
             _listClients = new ListView();
             _listClients.View = View.Details;
             _listClients.FullRowSelect = true;
             _listClients.BorderStyle = BorderStyle.None;
-            _listClients.Columns.Add("地址", 540);
-            _listClients.Columns.Add("状态", 360);
-            _listClients.SetBounds(14, 34, 918, 122);
+            _listClients.Columns.Add("地址", 560);
+            _listClients.Columns.Add("状态", 240);
+            _listClients.Dock = DockStyle.Fill;
             _listClients.BackColor = F.C.CardAlt; _listClients.ForeColor = F.C.Text;
-            cCli.Controls.Add(_listClients);
-            page.Controls.Add(cCli);
+            t4.Controls.Add(_listClients, 0, 0);
+            root.Controls.Add(cCli, 0, 4);
 
-            // 日志卡
+            // ---- 卡5 日志 ----
             FluentCard cLog = new FluentCard();
             cLog.Caption = "日志";
-            cLog.SetBounds(12, 540, 946, 150);
+            cLog.Dock = DockStyle.Fill;
+            TableLayoutPanel t5 = CardBody(cLog, 12, 12, 12);
             _log = new TextBox();
             _log.Multiline = true;
             _log.ReadOnly = true;
             _log.ScrollBars = ScrollBars.Vertical;
             _log.BorderStyle = BorderStyle.None;
-            _log.SetBounds(14, 34, 918, 106);
+            _log.Dock = DockStyle.Fill;
             _log.BackColor = F.C.CardAlt; _log.ForeColor = F.C.TextDim; _log.Font = F.SmallFont;
-            cLog.Controls.Add(_log);
-            page.Controls.Add(cLog);
+            t5.Controls.Add(_log, 0, 0);
+            root.Controls.Add(cLog, 0, 5);
 
             return page;
         }
 
         /* =================================================================== */
-        /* 观看端页面                                                          */
+        /* 观看端页面（TableLayout 流式）                                       */
         /* =================================================================== */
         private Panel BuildViewerPanel()
         {
             Panel page = new Panel();
-            page.SetBounds(0, 0, 970, 700);
+            page.Dock = DockStyle.Fill;
             page.BackColor = F.C.WindowBg;
 
-            _vStatus = MakeLabel("正在自动发现共享端…", 14, 12, 500, 22, F.C.Amber);
-            page.Controls.Add(_vStatus);
+            TableLayoutPanel root = MakeTable(1, 3);
+            root.Padding = new Padding(12, 10, 12, 10);
+            root.RowStyles.Clear();
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // 顶栏
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100F)); // 主体
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // 底部信息
+            page.Controls.Add(root);
 
+            // ---- 顶栏 ----
+            TableLayoutPanel top = MakeTable(5, 1);
+            top.ColumnStyles.Clear();
+            top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            top.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180));
+            top.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            top.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            top.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            _vStatus = MakeLabel("正在自动发现共享端…", F.C.Amber, new Size(0, 26));
+            _vStatus.Margin = new Padding(0, 6, 0, 0);
             _txtManual = new TextBox();
             _txtManual.Text = "IP:端口";
-            _txtManual.SetBounds(620, 9, 170, 27);
+            _txtManual.Height = 27;
+            _txtManual.Dock = DockStyle.Top; _txtManual.Margin = new Padding(0, 5, 8, 0);
             _txtManual.BackColor = F.C.CardAlt; _txtManual.ForeColor = F.C.Text; _txtManual.BorderStyle = BorderStyle.FixedSingle;
-            page.Controls.Add(_txtManual);
-
             FluentButton btnManual = new FluentButton();
             btnManual.Text = "直连";
             btnManual.Icon = IconKind.Link;
-            btnManual.SetBounds(798, 8, 70, 30);
+            btnManual.Size = new Size(72, 30);
+            btnManual.Margin = new Padding(0, 3, 8, 0);
             btnManual.Click += (s, e) => ManualConnect();
-            page.Controls.Add(btnManual);
-
             FluentButton btnFull = new FluentButton();
             btnFull.Text = "全屏";
             btnFull.Icon = IconKind.Fullscreen;
-            btnFull.SetBounds(876, 8, 84, 30);
+            btnFull.Size = new Size(84, 30);
+            btnFull.Margin = new Padding(0, 3, 0, 0);
             btnFull.Click += (s, e) => ToggleFullscreen();
-            page.Controls.Add(btnFull);
+            top.Controls.Add(_vStatus, 0, 0);
+            top.Controls.Add(_txtManual, 1, 0);
+            top.Controls.Add(btnManual, 2, 0);
+            top.Controls.Add(btnFull, 3, 0);
+            root.Controls.Add(top, 0, 0);
 
-            Label lHint3 = MakeLabel("双击画面全屏 / Esc 退出；断线自动重连", 14, 44, 320, 20, F.C.TextDim);
-            page.Controls.Add(lHint3);
+            // ---- 主体：左列表 + 画面 ----
+            TableLayoutPanel body = MakeTable(2, 1);
+            body.Margin = new Padding(0, 8, 0, 8);
+            body.ColumnStyles.Clear();
+            body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 250));
+            body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
 
-            // 左侧发现列表卡片
             FluentCard cFind = new FluentCard();
             cFind.Caption = "自动发现的共享端（双击连接）";
-            cFind.SetBounds(12, 72, 250, 546);
+            cFind.Dock = DockStyle.Fill;
+            cFind.Margin = new Padding(0, 0, 10, 0);
+            TableLayoutPanel tFind = CardBody(cFind, 12, 12, 12);
             _vList = new ListView();
             _vList.View = View.Details;
             _vList.FullRowSelect = true;
             _vList.BorderStyle = BorderStyle.None;
-            _vList.Columns.Add("主机", 90);
-            _vList.Columns.Add("地址", 140);
-            _vList.SetBounds(14, 34, 222, 496);
+            _vList.Columns.Add("主机", 88);
+            _vList.Columns.Add("地址", 120);
+            _vList.Dock = DockStyle.Fill;
             _vList.BackColor = F.C.CardAlt; _vList.ForeColor = F.C.Text;
             _vList.DoubleClick += (s, e) => ConnectSelected();
-            cFind.Controls.Add(_vList);
-            page.Controls.Add(cFind);
+            tFind.Controls.Add(_vList, 0, 0);
+            body.Controls.Add(cFind, 0, 0);
 
-            // 画面区
             FluentCard cFrame = new FluentCard();
             cFrame.Caption = "实时画面";
-            cFrame.SetBounds(274, 72, 684, 560);
+            cFrame.Dock = DockStyle.Fill;
+            TableLayoutPanel tFrame = CardBody(cFrame, 12, 12, 12);
             _picHostPanel = new Panel();
-            _picHostPanel.SetBounds(12, 30, 660, 518);
+            _picHostPanel.Dock = DockStyle.Fill;
+            _picHostPanel.BackColor = Color.Black;
             _pic = new PictureBox();
             _pic.Dock = DockStyle.Fill;
             _pic.SizeMode = PictureBoxSizeMode.Zoom;
             _pic.BackColor = Color.Black;
             _pic.DoubleClick += (s, e) => ToggleFullscreen();
             _picHostPanel.Controls.Add(_pic);
-            cFrame.Controls.Add(_picHostPanel);
-            page.Controls.Add(cFrame);
+            tFrame.Controls.Add(_picHostPanel, 0, 0);
+            body.Controls.Add(cFrame, 1, 0);
 
-            _vInfo = MakeLabel("等待画面…  （请提醒共享方点击「开始共享」）", 14, 644, 940, 22, F.C.TextDim);
-            page.Controls.Add(_vInfo);
+            root.Controls.Add(body, 0, 1);
+
+            // ---- 底部信息 ----
+            Label lHint3 = MakeLabel("双击画面全屏 / Esc 退出；断线自动重连", F.C.TextDim, new Size(0, 20));
+            root.Controls.Add(lHint3, 0, 2);
+
+            _vInfo = MakeLabel("等待画面…  （请提醒共享方点击「开始共享」）", F.C.TextDim, new Size(0, 20));
+            _vInfo.Dock = DockStyle.Right;
+            root.Controls.Add(_vInfo, 0, 2);
+
+            // 顶栏 + 信息独立行（右侧信息行与提示同行）
+            FlowLayoutPanel infoRow = new FlowLayoutPanel();
+            infoRow.Dock = DockStyle.Fill;
+            infoRow.WrapContents = false;
+            infoRow.AutoSize = true;
+            infoRow.Controls.Add(lHint3);
+            lHint3.Margin = new Padding(0, 2, 24, 0);
+            infoRow.Controls.Add(_vInfo);
+            _vInfo.Margin = new Padding(0, 2, 0, 0);
+            root.Controls.Remove(lHint3);
+            root.Controls.Remove(_vInfo);
+            root.Controls.Add(infoRow, 0, 2);
 
             KeyPreview = true;
             KeyDown += (s, e) => { if (e.KeyCode == Keys.F11) { ToggleFullscreen(); e.Handled = true; } };
             return page;
         }
-
-        private void ConfigureViewer() { } // 占位（与旧版合并的构建接口一致）
-
-        private void ConfigureSharing() { } // 占位
 
         /* =================================================================== */
         /* 共享端逻辑                                                          */
@@ -443,10 +583,7 @@ namespace ScreenShare
             Settings.Format = _rbPng.Checked ? "png" : "jpeg";
             Settings.Fps = (int)_numFps.Value;
             Settings.Quality = (int)_numQuality.Value;
-            try
-            {
-                _engine.Start();
-            }
+            try { _engine.Start(); }
             catch (Exception ex)
             {
                 MessageBox.Show(this, ex.Message, "无法开始共享", MessageBoxButtons.OK, MessageBoxIcon.Error);

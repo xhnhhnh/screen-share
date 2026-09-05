@@ -141,18 +141,21 @@ namespace ScreenShare
             using (SolidBrush b = new SolidBrush(bg))
                 g.FillPath(b, path);
 
-            Color tc = Primary ? Color.FromArgb(8, 30, 45) : (Enabled ? F.C.Text : F.C.TextDim);
-            Rectangle textArea = ClientRectangle;
-            if (Icon != IconKind.None)
-            {
-                int iconSize = 15;
-                int ix = 14;
-                int iy = (Height - iconSize) / 2;
-                FluentIcon.Draw(g, Icon, ix, iy, iconSize, tc);
-                textArea = new Rectangle(ix + iconSize + 8, 0, Width - (ix + iconSize + 8) - 12, Height);
-            }
-            TextRenderer.DrawText(g, Text, Font, textArea, tc,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            Color tc = Primary ? Color.FromArgb(8, 30, 45) : (Enabled ? F.C.Text : (DisabledText));
+            // 图标 + 文字整体居中（Icon 与 Text 作为一组度量）
+            int iconSize = 15;
+            bool hasIcon = Icon != IconKind.None;
+            string text = Text ?? "";
+            Size ts = TextRenderer.MeasureText(g, text, Font);
+            int gap = 7;
+            int totalW = (hasIcon ? iconSize + gap : 0) + ts.Width;
+            int sx = (Width - totalW) / 2;
+            if (sx < 4) sx = 4;
+            if (hasIcon)
+                FluentIcon.Draw(g, Icon, sx, (Height - iconSize) / 2, iconSize, tc);
+            Rectangle textArea = new Rectangle(sx + (hasIcon ? iconSize + gap : 0), 0, ts.Width + 4, Height);
+            TextRenderer.DrawText(g, text, Font, textArea, tc,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
 
             if (Focused && ShowFocusCues)
             {
@@ -160,6 +163,8 @@ namespace ScreenShare
                     g.DrawRectangle(p, r.X + 2, r.Y + 2, r.Width - 5, r.Height - 5);
             }
         }
+
+        private static readonly Color DisabledText = Color.FromArgb(110, 110, 110);
 
         protected override void OnGotFocus(EventArgs e) { Invalidate(); base.OnGotFocus(e); }
         protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
