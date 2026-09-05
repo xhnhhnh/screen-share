@@ -310,10 +310,20 @@ namespace ScreenShare
             }
 
             Color tc = Selected ? F.C.Accent : (_hover ? F.C.Text : F.C.TextDim);
-            if (Icon != IconKind.None)
-                FluentIcon.Draw(g, Icon, 27, (Height - 19) / 2, 19, tc);
-            TextRenderer.DrawText(g, Text, F.BaseFont, new Rectangle(56, 0, Width - 62, Height), tc,
-                TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+            // 图标 + 文字作为整体在内容区（避开左侧强调条）水平居中
+            string text = Text ?? "";
+            Size ts = TextRenderer.MeasureText(e.Graphics, text, F.BaseFont);
+            int iconSize = 19;
+            bool hasIcon = Icon != IconKind.None;
+            int gap = 10;
+            int totalW = (hasIcon ? iconSize + gap : 0) + ts.Width;
+            int cx = 8 + ((Width - 16) - totalW) / 2;
+            if (cx < 14) cx = 14;
+            if (hasIcon)
+                FluentIcon.Draw(g, Icon, cx, (Height - iconSize) / 2, iconSize, tc);
+            TextRenderer.DrawText(g, text, F.BaseFont,
+                new Rectangle(cx + (hasIcon ? iconSize + gap : 0), 0, ts.Width + 4, Height), tc,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
         }
     }
 
